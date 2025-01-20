@@ -1,0 +1,548 @@
+Script started on Sun 16 Sep 2018 04:52:08 PM EDT
+-------- freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.0-2beb96c --------
+Setting up environment for FreeSurfer/FS-FAST (and FSL)
+FREESURFER_HOME   /usr/local/freesurfer
+FSFAST_HOME       /usr/local/freesurfer/fsfast
+FSF_OUTPUT_FORMAT nii.gz
+SUBJECTS_DIR      /usr/local/freesurfer/subjects
+MNI_DIR           /usr/local/freesurfer/mni
+FSL_DIR           /usr/local/fsl
+]0;user1@CUDA1: /media/user1/MyHDataStor11/Data/CNN-Haotian/final_scripts/deep_FL_CL_ATT/training[01;32muser1@CUDA1[00m:[01;34m/media/user1/MyHDataStor11/Data/CNN-Haotian/final_scripts/deep_FL_CL__ATT/training[00m$ python main_28_14_GPU1.py 
+data loaded!
+X_train_shape torch.Size([2358144, 3, 100])
+X_test_shape torch.Size([1158760, 3, 100])
+
+
+Epoch: 0
+/media/user1/MyHDataStor11/Data/CNN-Haotian/final_scripts/deep_FL_CL_ATT/training/RESNET152_ATT_naive.py:176: UserWarning: Implicit dimension choice for log_softmax has been deprecated. Change the call to include dim=X as an argument.
+  return F.log_softmax(x),embed,x_att#input=x,dim=1
+Training set avg loss: 0.4679
+	center loss: 6180.7964
+conf_mat:
+ [[101067      0      1 ...      0      0     65]
+ [     0   5514    420 ...      0      0      6]
+ [     2    248  11699 ...      0      0      2]
+ ...
+ [     3      0      0 ...   4462      1      0]
+ [     7      0      3 ...      0  21839     13]
+ [     1      0      0 ...      0      1      8]]
+Precision,Recall,macro_f1 0.7179500051691557 0.5679432252507942 0.6198942424708298
+373.51131558418274 seconds
+Test set avg loss: 0.4581
+	center loss: 178.1854
+conf_mat:
+ [[34942     0     0 ...     0     0     0]
+ [    0  2288    62 ...     0     0     0]
+ [    0    35  3651 ...     0     0     0]
+ ...
+ [    0     0     0 ...  1955     0     0]
+ [    0     0     0 ...     0  4973     0]
+ [    0     0     0 ...     0     0    25]]
+Precision,Recall,macro_f1 0.8267816990313082 0.8228248064885229 0.8165871710909737
+43.30156230926514 seconds
+
+
+Epoch: 1
+Training set avg loss: 0.1149
+	center loss: 2466.3067
+conf_mat:
+ [[128778      0      0 ...      0      0      0]
+ [     0   8504    359 ...      0      0      0]
+ [     0    349  16228 ...      0      0      0]
+ ...
+ [     0      0      0 ...   8141      0      0]
+ [     0      0      2 ...      0  27104      0]
+ [     0      0      0 ...      0      0    673]]
+Precision,Recall,macro_f1 0.8136646429692086 0.8285394870337485 0.8203490745277989
+378.91890501976013 seconds
+Test set avg loss: 0.3981
+	center loss: 77.9507
+conf_mat:
+ [[35415     0     0 ...     0     0     0]
+ [    0  2294    31 ...     0     0     0]
+ [    0    72  3536 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2259     0     0]
+ [    0     0     0 ...     0  5533     0]
+ [    0     0     0 ...     0     0   172]]
+Precision,Recall,macro_f1 0.856260816226199 0.8699453185364472 0.8615382662665817
+44.476487159729004 seconds
+
+
+Epoch: 2
+Training set avg loss: 0.0985
+	center loss: 1046.6507
+conf_mat:
+ [[131570      0      0 ...      0      0      0]
+ [     0   8779    361 ...      0      0      0]
+ [     0    352  16604 ...      0      0      0]
+ ...
+ [     0      0      0 ...   8624      0      0]
+ [     0      0      0 ...      0  27626      0]
+ [     0      0      0 ...      0      0    849]]
+Precision,Recall,macro_f1 0.8331332907659608 0.854673237809978 0.8433920994296351
+382.644287109375 seconds
+Test set avg loss: 0.3911
+	center loss: 32.1756
+conf_mat:
+ [[38560     0     0 ...     0     0     0]
+ [    0  2323    44 ...     0     0     0]
+ [    0    36  3389 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2214     0     0]
+ [    0     0     0 ...     0  5822     0]
+ [    0     0     0 ...     0     0   179]]
+Precision,Recall,macro_f1 0.8710084829249073 0.8794984152078466 0.8742092434003962
+43.78023672103882 seconds
+
+
+Epoch: 3
+Training set avg loss: 0.0935
+	center loss: 412.3996
+conf_mat:
+ [[132737      0      0 ...      0      0      0]
+ [     0   8873    364 ...      0      0      0]
+ [     0    322  16674 ...      0      0      0]
+ ...
+ [     0      0      0 ...   8910      0      0]
+ [     0      0      0 ...      0  27909      0]
+ [     0      0      0 ...      0      0    891]]
+Precision,Recall,macro_f1 0.8430660113410055 0.8657577907719021 0.8539121282879456
+380.4590766429901 seconds
+Test set avg loss: 0.4016
+	center loss: 12.5542
+conf_mat:
+ [[37193     0     0 ...     0     0     0]
+ [    0  2151    26 ...     0     0     0]
+ [    0    86  3666 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2281     0     0]
+ [    0     0     0 ...     0  5674     0]
+ [    0     0     0 ...     0     0   217]]
+Precision,Recall,macro_f1 0.8694167855202726 0.8927727649295204 0.8797334748247209
+44.164923429489136 seconds
+
+
+Epoch: 4
+Training set avg loss: 0.0972
+	center loss: 150.1378
+conf_mat:
+ [[128740      0      0 ...      0      0      0]
+ [     0   8996    346 ...      0      0      0]
+ [     0    310  16794 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9063      0      0]
+ [     0      0      0 ...      0  28063      0]
+ [     0      0      0 ...      0      0    915]]
+Precision,Recall,macro_f1 0.8488568376593271 0.8708533830464048 0.8592746688832239
+382.2658939361572 seconds
+Test set avg loss: 0.4569
+	center loss: 4.7237
+conf_mat:
+ [[34108     0     0 ...     0     0     0]
+ [    0  2315    41 ...     0     0     0]
+ [    0    55  3640 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2366     0     0]
+ [    0     0     0 ...     0  5913     0]
+ [    0     0     0 ...     0     0   217]]
+Precision,Recall,macro_f1 0.8695968363020897 0.892899671298987 0.8794831894654844
+43.925355434417725 seconds
+
+
+Epoch: 5
+Training set avg loss: 0.1169
+	center loss: 51.9798
+conf_mat:
+ [[105336      0      0 ...      0      0      0]
+ [     0   8959    343 ...      0      0      0]
+ [     0    268  16773 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9183      0      0]
+ [     0      0      0 ...      0  28595      0]
+ [     0      0      0 ...      0      0    908]]
+Precision,Recall,macro_f1 0.8495119840770616 0.8664377143349334 0.8565444252654034
+380.31484866142273 seconds
+Test set avg loss: 0.5463
+	center loss: 1.8710
+conf_mat:
+ [[23210     0     0 ...     0     0     0]
+ [    0  2281    63 ...     0     0     0]
+ [    0    28  3756 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2395     0     0]
+ [    0     0     0 ...     0  6257     0]
+ [    0     0     0 ...     0     0   229]]
+Precision,Recall,macro_f1 0.8687421008422207 0.8820093846102101 0.8716897983226021
+44.011720180511475 seconds
+
+
+Epoch: 6
+Training set avg loss: 0.1540
+	center loss: 18.0580
+conf_mat:
+ [[81059     0     0 ...     0     0     0]
+ [    0  8664   339 ...     0     0     0]
+ [    0   196 15742 ...     0     0     0]
+ ...
+ [    0     0     0 ...  9306     0     0]
+ [    0     0     0 ...     0 29101     0]
+ [    0     0     0 ...     0     0   926]]
+Precision,Recall,macro_f1 0.8491050093006096 0.8464958012387593 0.8429398539166431
+381.2855522632599 seconds
+Test set avg loss: 0.6311
+	center loss: 0.8362
+conf_mat:
+ [[23104     0     0 ...     0     0     0]
+ [    0  2175    29 ...     0     0     0]
+ [    0    33  2950 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2356     0     0]
+ [    0     0     0 ...     0  5411     0]
+ [    0     0     0 ...     0     0   227]]
+Precision,Recall,macro_f1 0.8622401229165039 0.8399012505337826 0.8353679572250228
+44.101264238357544 seconds
+
+
+Epoch: 7
+Training set avg loss: 0.1865
+	center loss: 6.8009
+conf_mat:
+ [[98680     0     0 ...     0     0     0]
+ [    0  8043   268 ...     0     0     0]
+ [    0   133 10807 ...     0     0     0]
+ ...
+ [    0     0     0 ...  9254     0     0]
+ [    0     0     0 ...     0 28327     0]
+ [    0     0     0 ...     0     0   921]]
+Precision,Recall,macro_f1 0.8399866779638889 0.7944084126580295 0.7932444915200103
+380.76395535469055 seconds
+/home/user1/anaconda3/lib/python3.6/site-packages/sklearn/metrics/classification.py:1135: UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples.
+  'precision', 'predicted', average, warn_for)
+Test set avg loss: 0.6550
+	center loss: 0.4321
+conf_mat:
+ [[29497     0     0 ...     0     0     0]
+ [    0  2008    43 ...     0     0     0]
+ [    0    21  1779 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2253     0     0]
+ [    0     0     0 ...     0  5764     0]
+ [    0     0     0 ...     0     0   207]]
+Precision,Recall,macro_f1 0.8258350380627075 0.7682691924644354 0.761083261025582
+44.698145627975464 seconds
+
+
+Epoch: 8
+Training set avg loss: 0.1909
+	center loss: 2.9935
+conf_mat:
+ [[109593      0      0 ...      0      0      0]
+ [     0   7732    207 ...      0      0      0]
+ [     0     92   6853 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9255      0      0]
+ [     0      0      0 ...      0  27460      0]
+ [     0      0      0 ...      0      0    933]]
+Precision,Recall,macro_f1 0.8307741696018167 0.7509025713259875 0.7419277726444268
+381.86823534965515 seconds
+Test set avg loss: 0.6355
+	center loss: 0.2387
+conf_mat:
+ [[30949     0     0 ...     0     0     0]
+ [    0  2067     5 ...     0     0     0]
+ [    0     9   968 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2420     0     0]
+ [    0     0     0 ...     0  5414     0]
+ [    0     0     0 ...     0     0   224]]
+Precision,Recall,macro_f1 0.7974785118617241 0.7596815526251733 0.7441651611770261
+43.98552346229553 seconds
+
+
+Epoch: 9
+Training set avg loss: 0.1793
+	center loss: 1.6131
+conf_mat:
+ [[116811      0      0 ...      0      0      0]
+ [     0   7751    188 ...      0      0      0]
+ [     0    105   8071 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9250      0      0]
+ [     0      0      0 ...      0  27331      0]
+ [     0      0      0 ...      0      0    935]]
+Precision,Recall,macro_f1 0.8090912354957993 0.7401631698273551 0.7241259556148212
+379.88450360298157 seconds
+Test set avg loss: 0.6060
+	center loss: 0.1652
+conf_mat:
+ [[30232     0     0 ...     0     0     0]
+ [    0  1971    51 ...     0     0     0]
+ [    0     8  1534 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2320     0     0]
+ [    0     0     0 ...     0  5029     0]
+ [    0     0     0 ...     0     0   213]]
+Precision,Recall,macro_f1 0.7796910573050654 0.7479921331100631 0.7330102603284392
+44.434144496917725 seconds
+
+
+Epoch: 10
+Training set avg loss: 0.1618
+	center loss: 0.9554
+conf_mat:
+ [[120157      0      0 ...      0      0      0]
+ [     0   8176    251 ...      0      0      0]
+ [     0    151   9809 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9373      0      0]
+ [     0      0      0 ...      0  26652      0]
+ [     0      0      0 ...      0      0    941]]
+Precision,Recall,macro_f1 0.8029515209837984 0.7489520108894279 0.7296468554391792
+381.3337333202362 seconds
+Test set avg loss: 0.5696
+	center loss: 0.0934
+conf_mat:
+ [[32685     0     0 ...     0     0     0]
+ [    0  2296    26 ...     0     0     0]
+ [    0    57  1781 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2346     0     0]
+ [    0     0     0 ...     0  5499     0]
+ [    0     0     0 ...     0     0   221]]
+Precision,Recall,macro_f1 0.7845351123483155 0.7664715298710862 0.7515160869707409
+43.807960510253906 seconds
+
+
+Epoch: 11
+Training set avg loss: 0.1494
+	center loss: 0.6241
+conf_mat:
+ [[122527      0      0 ...      0      0      0]
+ [     0   8439    295 ...      0      0      0]
+ [     0    201  11715 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9354      0      0]
+ [     0      0      0 ...      0  26740      0]
+ [     0      0      0 ...      0      0    926]]
+Precision,Recall,macro_f1 0.796409404542709 0.7578905263922296 0.74185080951399
+379.96607279777527 seconds
+Test set avg loss: 0.5373
+	center loss: 0.0636
+conf_mat:
+ [[34309     0     0 ...     0     0     0]
+ [    0  2204    70 ...     0     0     0]
+ [    0    42  3308 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2427     0     0]
+ [    0     0     0 ...     0  5885     0]
+ [    0     0     0 ...     0     0   206]]
+Precision,Recall,macro_f1 0.7931031351761977 0.7758956754274985 0.7581346554668615
+43.961318254470825 seconds
+
+
+Epoch: 12
+Training set avg loss: 0.1340
+	center loss: 0.4160
+conf_mat:
+ [[125315      0      0 ...      0      0      0]
+ [     0   8591    344 ...      0      0      0]
+ [     0    222  13264 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9382      0      0]
+ [     0      0      0 ...      0  26887      0]
+ [     0      0      0 ...      0      0    928]]
+Precision,Recall,macro_f1 0.8075941550900018 0.777428711464435 0.7659229723070087
+381.9109261035919 seconds
+Test set avg loss: 0.5063
+	center loss: 0.0455
+conf_mat:
+ [[35967     0     0 ...     0     0     0]
+ [    0  2325    43 ...     0     0     0]
+ [    0    34  3191 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2414     0     0]
+ [    0     0     0 ...     0  5736     0]
+ [    0     0     0 ...     0     0   220]]
+Precision,Recall,macro_f1 0.8340278454986112 0.796835072824785 0.7852466931295622
+44.36342740058899 seconds
+
+
+Epoch: 13
+Training set avg loss: 0.1236
+	center loss: 0.3116
+conf_mat:
+ [[126239      0      0 ...      0      0      0]
+ [     0   8699    317 ...      0      0      0]
+ [     0    269  14052 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9367      0      0]
+ [     0      0      0 ...      0  26604      0]
+ [     0      0      0 ...      0      0    901]]
+Precision,Recall,macro_f1 0.8261339215489362 0.7978454082654535 0.7900843622912984
+380.5171935558319 seconds
+Test set avg loss: 0.4812
+	center loss: 0.0375
+conf_mat:
+ [[35850     0     0 ...     0     0     0]
+ [    0  2233   112 ...     0     0     0]
+ [    0    18  3488 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2299     0     0]
+ [    0     0     0 ...     0  6103     0]
+ [    0     0     0 ...     0     0   181]]
+Precision,Recall,macro_f1 0.8292824967617848 0.8174650724132208 0.8151059433268357
+44.0564169883728 seconds
+
+
+Epoch: 14
+Training set avg loss: 0.1156
+	center loss: 0.2479
+conf_mat:
+ [[127247      0      0 ...      0      0      0]
+ [     0   8723    366 ...      0      0      0]
+ [     0    276  14764 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9333      0      0]
+ [     0      0      0 ...      0  27037      0]
+ [     0      0      0 ...      0      0    870]]
+Precision,Recall,macro_f1 0.8318417912477415 0.8127892048456761 0.8042886180456547
+378.6277003288269 seconds
+Test set avg loss: 0.4708
+	center loss: 0.0284
+conf_mat:
+ [[36699     0     0 ...     0     0     0]
+ [    0  2234    42 ...     0     0     0]
+ [    0    46  3440 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2369     0     0]
+ [    0     0     0 ...     0  5281     0]
+ [    0     0     0 ...     0     0   187]]
+Precision,Recall,macro_f1 0.8541099063761255 0.8311272305690323 0.8243555553115243
+43.949732542037964 seconds
+
+
+Epoch: 15
+Training set avg loss: 0.1068
+	center loss: 0.1860
+conf_mat:
+ [[128126      0      0 ...      0      0      0]
+ [     0   8892    335 ...      0      0      0]
+ [     0    270  15168 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9265      0      0]
+ [     0      0      0 ...      0  27150      0]
+ [     0      0      0 ...      0      0    757]]
+Precision,Recall,macro_f1 0.8447808621768502 0.8231415588452164 0.815350311711369
+378.90800189971924 seconds
+Test set avg loss: 0.4550
+	center loss: 0.0216
+conf_mat:
+ [[34370     0     0 ...     0     0     0]
+ [    0  2219    58 ...     0     0     0]
+ [    0    30  3443 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2393     0     0]
+ [    0     0     0 ...     0  5584     0]
+ [    0     0     0 ...     0     0   212]]
+Precision,Recall,macro_f1 0.8747725592674372 0.8576683136733948 0.8508269204415825
+44.232463359832764 seconds
+
+
+Epoch: 16
+Training set avg loss: 0.1013
+	center loss: 0.1529
+conf_mat:
+ [[129312      0      0 ...      0      0      0]
+ [     0   8927    350 ...      0      0      0]
+ [     0    299  15528 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9279      0      0]
+ [     0      0      0 ...      0  27371      0]
+ [     0      0      0 ...      0      0    598]]
+Precision,Recall,macro_f1 0.8491046932283371 0.8311440254641074 0.8244454133395093
+378.8100674152374 seconds
+Test set avg loss: 0.4420
+	center loss: 0.0163
+conf_mat:
+ [[37530     0     0 ...     0     0     0]
+ [    0  2354    43 ...     0     0     0]
+ [    0    37  3602 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2417     0     0]
+ [    0     0     0 ...     0  5680     0]
+ [    0     0     0 ...     0     0    88]]
+Precision,Recall,macro_f1 0.8774218555829878 0.8454285737559544 0.8403545615039508
+43.88214659690857 seconds
+
+
+Epoch: 17
+Training set avg loss: 0.0937
+	center loss: 0.1204
+conf_mat:
+ [[130755      0      0 ...      0      0      0]
+ [     0   9013    349 ...      0      0      0]
+ [     0    295  15976 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9283      0      0]
+ [     0      0      0 ...      0  27227      0]
+ [     0      0      0 ...      0      0    332]]
+Precision,Recall,macro_f1 0.8553467585743003 0.8375604800331434 0.8306349835953948
+379.13707542419434 seconds
+Test set avg loss: 0.4797
+	center loss: 0.0182
+conf_mat:
+ [[39814     0     0 ...     0     0     0]
+ [    0  2370    73 ...     0     0     0]
+ [    0    20  3067 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2380     0     0]
+ [    0     0     0 ...     0  4160     0]
+ [    0     0     0 ...     0     0    40]]
+Precision,Recall,macro_f1 0.8426935986371794 0.8235629056267157 0.8184379632866801
+44.2037091255188 seconds
+
+
+Epoch: 18
+Training set avg loss: 0.0925
+	center loss: 0.1104
+conf_mat:
+ [[130672      0      0 ...      0      0      0]
+ [     0   8927    376 ...      0      0      0]
+ [     0    302  15922 ...      0      0      0]
+ ...
+ [     0      0      0 ...   9246      0      0]
+ [     0      0      0 ...      0  27303      0]
+ [     0      0      0 ...      0      0    230]]
+Precision,Recall,macro_f1 0.8564225453743102 0.8407829616934681 0.8346653517715757
+378.55829310417175 seconds
+Test set avg loss: 0.4199
+	center loss: 0.0110
+conf_mat:
+ [[36397     0     0 ...     0     0     0]
+ [    0  2330    51 ...     0     0     0]
+ [    0    44  3526 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2399     0     0]
+ [    0     0     0 ...     0  5244     0]
+ [    0     0     0 ...     0     0     0]]
+Precision,Recall,macro_f1 0.8538020219000981 0.8515350027210861 0.8464611612512627
+43.9677734375 seconds
+Best epoch:3
+
+conf_mat:
+ [[37193     0     0 ...     0     0     0]
+ [    0  2151    26 ...     0     0     0]
+ [    0    86  3666 ...     0     0     0]
+ ...
+ [    0     0     0 ...  2281     0     0]
+ [    0     0     0 ...     0  5674     0]
+ [    0     0     0 ...     0     0   217]]
+Precison:0.8694
+Recall:0.8928
+f1:0.8797
+
+]0;user1@CUDA1: /media/user1/MyHDataStor11/Data/CNN-Haotian/final_scripts/deep_FL_CL_ATT/training[01;32muser1@CUDA1[00m:[01;34m/media/user1/MyHDataStor11/Data/CNN-Haotian/final_scripts/deep_FL_CL__ATT/training[00m$ exit
+exit
+
+Script done on Sun 16 Sep 2018 09:12:10 PM EDT
