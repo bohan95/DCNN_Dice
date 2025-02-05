@@ -225,13 +225,11 @@ def feature_loss_function(fea, target_fea):
     param: fea: mid-level deep features.
     param: target_fea: deepest feature maps.
     """
-    loss_feat = ((fea - target_fea)**2 * ((fea > 0) | (target_fea > 0)).float())
+    loss_feat = ((fea - target_fea)**2 * ((fea > 0) | (target_fea > 0)).float()).cuda()
     return args.feat_map_weight * torch.abs(loss_feat).sum()
 
 def train(epoch):
     print('\n\nEpoch: {}'.format(epoch))
-    print('args.use_only_main_loss: {}'.format(args.use_only_main_loss))
-    print('args.use_clustering_loss: {}'.format(args.use_clustering_loss))
     model.train()
     training_loss=0.
     centering_loss=0.
@@ -246,27 +244,28 @@ def train(epoch):
         
         # output,embed,_ = model(data) # Original return statement
         output,embed,_,non_softmax_out, out1, out2, out3, final_feat, out1_feat, out2_feat, out3_feat = model(data) # return statement with intermediate outputs for kl-divergence and feature-map loss      
+
         # compute focal losses
         floss_main = focalLoss(output,target) # Main output loss from GT to output
 
         # compute focal losses for intermediate outputs (Self-Distillation from GT to intermediate outputs)
-        # floss_out1 = focalLoss(F.log_softmax(out1),target) 
-        # floss_out2 = focalLoss(F.log_softmax(out2),target)
-        # floss_out3 = focalLoss(F.log_softmax(out3),target)
+        floss_out1 = focalLoss(F.log_softmax(out1),target) 
+        floss_out2 = focalLoss(F.log_softmax(out2),target)
+        floss_out3 = focalLoss(F.log_softmax(out3),target)
 
-        # # compute KL-divergence losses
-        # # output logits before the log-softmax in the network
-        # non_softmax_out_temp = non_softmax_out / args.kl_temp
-        # softmax_out_temp = torch.softmax(non_softmax_out_temp, dim=1)
+        # compute KL-divergence losses
+        # output logits before the log-softmax in the network
+        non_softmax_out_temp = non_softmax_out / args.kl_temp
+        softmax_out_temp = torch.softmax(non_softmax_out_temp, dim=1)
 
-        # kl_loss1 = kl_loss(out1, softmax_out_temp.detach()) 
-        # kl_loss2 = kl_loss(out2, softmax_out_temp.detach()) 
-        # kl_loss3 = kl_loss(out3, softmax_out_temp.detach()) 
+        kl_loss1 = kl_loss(out1, softmax_out_temp.detach()) 
+        kl_loss2 = kl_loss(out2, softmax_out_temp.detach()) 
+        kl_loss3 = kl_loss(out3, softmax_out_temp.detach()) 
 
-        # # Feature-Map Losses
-        # feature_loss_1 = feature_loss_function(out1_feat, final_feat.detach())
-        # feature_loss_2 = feature_loss_function(out2_feat, final_feat.detach())
-        # feature_loss_3 = feature_loss_function(out3_feat, final_feat.detach())
+        # Feature-Map Losses
+        feature_loss_1 = feature_loss_function(out1_feat, final_feat.detach())
+        feature_loss_2 = feature_loss_function(out2_feat, final_feat.detach())
+        feature_loss_3 = feature_loss_function(out3_feat, final_feat.detach())
 
         # selection of losses
         if args.use_only_main_loss:
@@ -298,7 +297,7 @@ def train(epoch):
                 # generate target distribution from ground-truth labels as target
                 tar_dist = ClusterlingLayer.create_soft_labels(target, NCLASS, temperature=args.kl_temp)
 
-            tar_dist = tar_dist
+            tar_dist = tar_dist.cuda()
             # calculate the clustering loss
             loss_clust = args.clustering_weight * kl_loss.kl_div_cluster(torch.log(clustering_out), tar_dist) / args.batch_size
         
@@ -366,7 +365,7 @@ def test():
                     # generate target distribution from one-hot ground-truth labels
                     tar_dist = ClusterlingLayer.create_soft_labels(target, NCLASS, temperature=args.kl_temp)
 
-                tar_dist = tar_dist
+                tar_dist = tar_dist.cuda()
                 # calculate the clustering loss
                 loss_clust = args.clustering_weight * kl_loss.kl_div_cluster(torch.log(clustering_out), tar_dist) / args.batch_size
             

@@ -63,7 +63,8 @@ class ClusterlingLayer(nn.Module):
         """
         Create soft labels using temperature scaling.
         """
-        one_hot = torch.eye(num_classes)[labels.long()]
+        device = labels.device
+        one_hot = torch.eye(num_classes, device=device)[labels.long()]
         # Apply temperature scaling
         soft_labels = F.softmax(one_hot / temperature, dim=1)
         return soft_labels

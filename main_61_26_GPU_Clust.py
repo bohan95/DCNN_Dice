@@ -42,24 +42,47 @@ def set_seed(seed):
 # Example usage
 set_seed(987) # please give the seed number that I used here instead of 42.
 
-GPUINX='2'
+GPUINX='1'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
 
         
 """v flip and shuffle"""
-def udflip(X_nparray,y_nparray,shuffle=True):
-    output=np.zeros((X_nparray.shape[0],X_nparray.shape[1],X_nparray.shape[2]),dtype=np.float32)
-    for i in range(X_nparray.shape[0]):
-        output[i,:]=np.flipud(X_nparray[i,:])
-    output=np.vstack((X_nparray,output))
-    y=np.hstack((y_nparray,y_nparray))
-    if shuffle:
-        shuffle_inx=np.random.permutation(output.shape[0])
-        return output[shuffle_inx],y[shuffle_inx]
-    else:
-        return output,y
+# def udflip(X_nparray,y_nparray,shuffle=True):
+#     output=np.zeros((X_nparray.shape[0],X_nparray.shape[1],X_nparray.shape[2]),dtype=np.float32)
+#     for i in range(X_nparray.shape[0]):
+#         output[i,:]=np.flipud(X_nparray[i,:])
+#     output=np.vstack((X_nparray,output))
+#     y=np.hstack((y_nparray,y_nparray))
+#     if shuffle:
+#         shuffle_inx=np.random.permutation(output.shape[0])
+#         return output[shuffle_inx],y[shuffle_inx]
+#     else:
+#         return output,y
+def udflip(X_nparray, y_nparray, shuffle=True):
+    """
+    仅翻转时间步，确保 `xyz` + 特殊信息的顺序始终不变
+    """
+    # 确保数据通道始终是 (xyz, 特殊信息)
+    if X_nparray.shape[2] == 4:
+        # 判断 `特殊信息` 是否在第一列
+        if np.std(X_nparray[:, 0, :]) > np.std(X_nparray[:, -1, :]):
+            print("Detected special info in first column, swapping...")
+            X_nparray = np.concatenate((X_nparray[:, 1:, :], X_nparray[:, 0:1, :]), axis=1)
+    
+    # 仅翻转 `xyz + 特殊信息` 的时间步
+    X_flipped = np.flip(X_nparray, axis=2)  # 只翻转时间维度
 
+    # 数据扩增（原数据 + 翻转后的数据）
+    X_aug = np.vstack((X_nparray, X_flipped))
+    y_aug = np.hstack((y_nparray, y_nparray))  # 复制标签
+
+    # 可选打乱
+    if shuffle:
+        shuffle_idx = np.random.permutation(X_aug.shape[0])
+        return X_aug[shuffle_idx], y_aug[shuffle_idx]
+    else:
+        return X_aug, y_aug
 
 def aug_at_test(probs,mode='max'):
     #input: list of numpy 10000*18 (logits)
@@ -122,16 +145,20 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
     
 """build datasets"""
-with open('../preprocessing/data_61_26.pkl','rb') as f:
+with open('../data_61_26_ROIV2.pkl','rb') as f:
     data=pickle.load(f)
 
 """flip and shuffle"""
 dataList=datato3d([data['X_train'],data['X_test']])
 X_train=dataList[0]
 X_test=dataList[1]
-X_train, y_train = X_train[:, :, ::5], data['y_train'][:]
-X_test, y_test = X_test[:, :, ::5], data['y_test'][:]
+# X_train, y_train = X_train[:, :, ::5], data['y_train'][:]
+# X_test, y_test = X_test[:, :, ::5], data['y_test'][:]
+indices_train = np.random.choice(X_train.shape[0], size=500000, replace=False)
+indices_test = np.random.choice(X_test.shape[0], size=50000, replace=False)
 
+X_train, y_train = X_train[indices_train, :, ::5], data['y_train'][indices_train]
+X_test, y_test = X_test[indices_test, :, ::5], data['y_test'][indices_test]
 y_test_list=data['y_test'].tolist()
 
 NCLASS=max(y_test_list)+1
@@ -193,20 +220,23 @@ def focalLoss(output,target):
     
 def train(epoch):
     print('\n\nEpoch: {}'.format(epoch))
+    # print(f"args.use_clustering_loss: {args.use_clustering_loss}")
+    print(f"args.clustering_weight: {args.clustering_weight}")
     model.train()
     training_loss=0.
     clustering_loss=0.
     preds=list()
     labels=list()
     for batch_idx,(data,target) in enumerate(trn_loader):
+        print(f'batch_idx: {batch_idx}')
         labels+=target.numpy().tolist()
         if args.cuda:
             data,target=data.cuda(),target.cuda()
         data,target=Variable(data),Variable(target)
         
-        output,embed,_=model(data)
-        print("output shape: ", output.shape)
-        print("embed shape: ", embed.shape)
+        output,embed,_,_,_,_,_,_,_,_,_=model(data)
+        # print("output shape: ", output.shape)
+        # print("embed shape: ", embed.shape)
         tloss=focalLoss(output,target)
         
         clustering_out, x_dis = clustering_layer(embed)
@@ -228,11 +258,12 @@ def train(epoch):
         training_loss+=tloss.data
         clustering_loss+=loss_clust.data
         
-        training_loss+=tloss.data
-        clustering_loss+=loss_clust.data
+        # TODO here why we need 2 
+        # training_loss+=tloss.data
+        # clustering_loss+=loss_clust.data
         
-        optimizer_nll.step()
-        optimizer_cluster.step()
+        # optimizer_nll.step()
+        # optimizer_cluster.step()
         
         pred = output.data.max(1, keepdim=True)[1]
         preds+=pred.cpu().numpy().tolist()
@@ -256,7 +287,7 @@ def test():
             if args.cuda:
                 data, target = data.cuda(), target.cuda()
             data, target = Variable(data), Variable(target)
-            output,embed,_ = model(data)
+            output,embed,_,_,_,_,_,_,_,_,_=model(data)
 
             test_loss += loss(output,target.long()).data
             clustering_out, x_dis = clustering_layer(embed)

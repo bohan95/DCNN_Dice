@@ -35,24 +35,48 @@ import seaborn as sn
 import pandas as pd
 import matplotlib.pyplot as plt
 
-GPUINX='1'
+GPUINX='0'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
 np.random.seed(987)
         
 """v flip and shuffle"""
-def udflip(X_nparray,y_nparray,shuffle=True):
-    output=np.zeros((X_nparray.shape[0],X_nparray.shape[1],X_nparray.shape[2]),dtype=np.float32)
-    for i in range(X_nparray.shape[0]):
-        # a = X_nparray[i,:] # just for checking the code
-        output[i,:]=np.flipud(X_nparray[i,:])
-    output=np.vstack((X_nparray,output))
-    y=np.hstack((y_nparray,y_nparray))
+# def udflip(X_nparray,y_nparray,shuffle=True):
+#     output=np.zeros((X_nparray.shape[0],X_nparray.shape[1],X_nparray.shape[2]),dtype=np.float32)
+#     for i in range(X_nparray.shape[0]):
+#         # a = X_nparray[i,:] # just for checking the code
+#         output[i,:]=np.flipud(X_nparray[i,:])
+#     output=np.vstack((X_nparray,output))
+#     y=np.hstack((y_nparray,y_nparray))
+#     if shuffle:
+#         shuffle_inx=np.random.permutation(output.shape[0])
+#         return output[shuffle_inx],y[shuffle_inx]
+#     else:
+#         return output,y
+def udflip(X_nparray, y_nparray, shuffle=True):
+    """
+    仅翻转时间步，确保 `xyz` + 特殊信息的顺序始终不变
+    """
+    # 确保数据通道始终是 (xyz, 特殊信息)
+    if X_nparray.shape[2] == 4:
+        # 判断 `特殊信息` 是否在第一列
+        if np.std(X_nparray[:, 0, :]) > np.std(X_nparray[:, -1, :]):
+            print("Detected special info in first column, swapping...")
+            X_nparray = np.concatenate((X_nparray[:, 1:, :], X_nparray[:, 0:1, :]), axis=1)
+    
+    # 仅翻转 `xyz + 特殊信息` 的时间步
+    X_flipped = np.flip(X_nparray, axis=2)  # 只翻转时间维度
+
+    # 数据扩增（原数据 + 翻转后的数据）
+    X_aug = np.vstack((X_nparray, X_flipped))
+    y_aug = np.hstack((y_nparray, y_nparray))  # 复制标签
+
+    # 可选打乱
     if shuffle:
-        shuffle_inx=np.random.permutation(output.shape[0])
-        return output[shuffle_inx],y[shuffle_inx]
+        shuffle_idx = np.random.permutation(X_aug.shape[0])
+        return X_aug[shuffle_idx], y_aug[shuffle_idx]
     else:
-        return output,y
+        return X_aug, y_aug
 
 
 def aug_at_test(probs,mode='max'):
@@ -169,7 +193,7 @@ print('data loaded!')
 print('X_train_shape',X_train.size())
 print('X_test_shape',X_test.size())
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
 trn_set=utils.TensorDataset(X_train,y_train)
 trn_loader=utils.DataLoader(trn_set,batch_size=args.batch_size,shuffle=True,**kwargs)
 
@@ -230,15 +254,16 @@ def feature_loss_function(fea, target_fea):
 
 def train(epoch):
     print('\n\nEpoch: {}'.format(epoch))
-    print('args.use_only_main_loss: {}'.format(args.use_only_main_loss))
-    print('args.use_clustering_loss: {}'.format(args.use_clustering_loss))
     model.train()
     training_loss=0.
     centering_loss=0.
     clustering_loss=0.
     preds=list()
     labels=list()
+    print(f"args.use_clustering_loss: {args.use_clustering_loss}")
+    print(f"args.clustering_weight: {args.clustering_weight}")
     for batch_idx,(data,target) in enumerate(trn_loader):
+        # print(f'batch_idx: {batch_idx}')
         labels+=target.numpy().tolist()
         if args.cuda:
             data,target=data.cuda(),target.cuda()
@@ -246,43 +271,15 @@ def train(epoch):
         
         # output,embed,_ = model(data) # Original return statement
         output,embed,_,non_softmax_out, out1, out2, out3, final_feat, out1_feat, out2_feat, out3_feat = model(data) # return statement with intermediate outputs for kl-divergence and feature-map loss      
+
         # compute focal losses
         floss_main = focalLoss(output,target) # Main output loss from GT to output
 
-        # compute focal losses for intermediate outputs (Self-Distillation from GT to intermediate outputs)
-        # floss_out1 = focalLoss(F.log_softmax(out1),target) 
-        # floss_out2 = focalLoss(F.log_softmax(out2),target)
-        # floss_out3 = focalLoss(F.log_softmax(out3),target)
 
-        # # compute KL-divergence losses
-        # # output logits before the log-softmax in the network
-        # non_softmax_out_temp = non_softmax_out / args.kl_temp
-        # softmax_out_temp = torch.softmax(non_softmax_out_temp, dim=1)
-
-        # kl_loss1 = kl_loss(out1, softmax_out_temp.detach()) 
-        # kl_loss2 = kl_loss(out2, softmax_out_temp.detach()) 
-        # kl_loss3 = kl_loss(out3, softmax_out_temp.detach()) 
-
-        # # Feature-Map Losses
-        # feature_loss_1 = feature_loss_function(out1_feat, final_feat.detach())
-        # feature_loss_2 = feature_loss_function(out2_feat, final_feat.detach())
-        # feature_loss_3 = feature_loss_function(out3_feat, final_feat.detach())
-
-        # selection of losses
-        if args.use_only_main_loss:
-            tloss = floss_main # only main loss
-            # print('Using only main loss')
-        elif args.use_main_plus_KL_Distil_loss:
-            tloss = floss_main + (floss_out1 + floss_out2 + floss_out3) + (kl_loss1 + kl_loss2 + kl_loss3)
-            # print('Using main loss + KL-Div Distillation loss')
-        elif args.use_main_plus_KL_plus_feature_Distil_loss:
-            # total loss = main loss + KL-divergence loss + feature-map loss
-            tloss = floss_main + (floss_out1 + floss_out2 + floss_out3) + (kl_loss1 + kl_loss2 + kl_loss3) + (feature_loss_1 + feature_loss_2 + feature_loss_3)
-            # print('Using main loss + KL-Div Distillation loss + Feature-Map loss')
-        else:
-            raise ValueError('Please select a valid main loss function')
-
+        tloss = floss_main # only main loss
+        # print('Using only main loss')
         # compute center losses
+        
         closs=centerloss(target,embed)
         # print(f'tloss: {tloss.data[0]}, closs: {closs.data[0]}')
         totalloss=tloss+closs
