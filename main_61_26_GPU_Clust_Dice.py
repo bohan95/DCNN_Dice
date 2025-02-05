@@ -40,7 +40,7 @@ GPUINX='1'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
 np.random.seed(987)
-device = torch.device("cuda:1".format(GPUINX) if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:{}".format(GPUINX) if torch.cuda.is_available() else "cpu")
 print(f'device: {device}')
 """v flip and shuffle"""
 # def udflip(X_nparray,y_nparray,shuffle=True):
@@ -127,7 +127,7 @@ def compute_cluster_anatomical_profile(preds, fiber_rois, num_clusters, num_anat
 
     return cluster_profiles
 
-def compute_cluster_roi(X_train, y_train, num_of_class, threshold=1e8):
+def compute_cluster_roi(X_train, y_train, num_of_class, threshold=1e-8):
     """
     Compute ROI classification for each cluster based on the rule that 40% of fibers pass through an ROI (ignoring 0).
     Also, print the ROI each fiber passes through along with its corresponding cluster.
@@ -232,11 +232,11 @@ X_test=dataList[1] # no_tractsx4x100
 
 # check with a small dataset
 # also test withh only 20 points per fiber: 1 point every 5 points
-indices_train = np.random.choice(X_train.shape[0], size=500000, replace=False)
-indices_test = np.random.choice(X_test.shape[0], size=50000, replace=False)
+indices_train = np.random.choice(X_train.shape[0], size=5000, replace=False)
+indices_test = np.random.choice(X_test.shape[0], size=5000, replace=False)
 
-X_train, y_train = X_train[indices_train, :, ::1], data['y_train'][indices_train]
-X_test, y_test = X_test[indices_test, :, ::1], data['y_test'][indices_test]
+X_train, y_train = X_train[indices_train, :, ::5], data['y_train'][indices_train]
+X_test, y_test = X_test[indices_test, :, ::5], data['y_test'][indices_test]
 
 # Original Data - Many Fibers
 # X_train, y_train = X_train[:, :, ::5], data['y_train'][:]
@@ -356,11 +356,11 @@ def compute_fiber_roi(fiber_data):
     """
     # Extract ROI classification data (b, 100)
     roi_data = fiber_data[:, 3, :]
-    print(f'roi data: {roi_data}')
+    print(f'roi data: {roi_data[0]}')
 
     # Remove 0 and get unique ROI classifications
     roi_list = [torch.unique(roi[roi != 0]) for roi in roi_data]
-    print(f'roi_list: {roi_list}')
+    print(f'roi_list: {roi_list[0]}')
     return roi_list
 
 
