@@ -135,8 +135,8 @@ class ResNet(nn.Module):
         self.avgpool3 = nn.AdaptiveAvgPool1d(1)
         self.middle_fc3 = nn.Linear(512 * block.expansion, num_classes)
                 
-        # self.avgpool = nn.AvgPool1d(5)  # required for 100 points per fiber
-        self.avgpool = nn.AvgPool1d(2)  # required for 20 points per fiber
+        self.avgpool = nn.AvgPool1d(5)  # required for 100 points per fiber
+        # self.avgpool = nn.AvgPool1d(2)  # required for 20 points per fiber
         self.fc = nn.Linear(512*groupNum * block.expansion, num_classes)
 
         for m in self.modules():
