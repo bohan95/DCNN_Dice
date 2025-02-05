@@ -40,7 +40,7 @@ GPUINX='1'
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
 np.random.seed(987)
-device = torch.device("cuda:1".format(GPUINX) if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:{}".format(GPUINX) if torch.cuda.is_available() else "cpu")
 print(f'device: {device}')
 """v flip and shuffle"""
 # def udflip(X_nparray,y_nparray,shuffle=True):
@@ -127,7 +127,7 @@ def compute_cluster_anatomical_profile(preds, fiber_rois, num_clusters, num_anat
 
     return cluster_profiles
 
-def compute_cluster_roi(X_train, y_train, num_of_class, threshold=1e8):
+def compute_cluster_roi(X_train, y_train, num_of_class, threshold=1e-8):
     """
     Compute ROI classification for each cluster based on the rule that 40% of fibers pass through an ROI (ignoring 0).
     Also, print the ROI each fiber passes through along with its corresponding cluster.
@@ -232,11 +232,11 @@ X_test=dataList[1] # no_tractsx4x100
 
 # check with a small dataset
 # also test withh only 20 points per fiber: 1 point every 5 points
-indices_train = np.random.choice(X_train.shape[0], size=500000, replace=False)
-indices_test = np.random.choice(X_test.shape[0], size=50000, replace=False)
+indices_train = np.random.choice(X_train.shape[0], size=50000, replace=False)
+indices_test = np.random.choice(X_test.shape[0], size=5000, replace=False)
 
-X_train, y_train = X_train[indices_train, :, ::1], data['y_train'][indices_train]
-X_test, y_test = X_test[indices_test, :, ::1], data['y_test'][indices_test]
+X_train, y_train = X_train[indices_train, :, ::], data['y_train'][indices_train]
+X_test, y_test = X_test[indices_test, :, ::], data['y_test'][indices_test]
 
 # Original Data - Many Fibers
 # X_train, y_train = X_train[:, :, ::5], data['y_train'][:]
@@ -323,26 +323,6 @@ def feature_loss_function(fea, target_fea):
     # TODO here we need to divided by batch size
     return args.feat_map_weight * torch.abs(loss_feat).sum() / fea.shape[0]
 
-def compute_fiber_anatomical_profile(fiber_rois, num_anatomical_rois, threshold=0.4):
-    """
-    calculate fiber passed anatomical profile。
-
-    - fiber_rois: (batch_size, num_fiber_points) -> each point's ROI(id)
-    - num_anatomical_rois: ROI number
-    - threshold: filter ROI threshold（default 40%）
-
-    return: (batch_size, num_anatomical_rois) -> one-hot 
-    """
-    batch_size = fiber_rois.shape[0]
-    anatomical_profile = torch.zeros((batch_size, num_anatomical_rois), device=fiber_rois.device)
-    # print(f'fiber_rois: {fiber_rois.shape}')
-    for i in range(batch_size):
-        roi_ids = fiber_rois[i].long()
-        roi_hist = torch.bincount(roi_ids, minlength=num_anatomical_rois).float()
-        roi_hist /= fiber_rois.shape[1]  # 归一化
-        anatomical_profile[i] = (roi_hist >= threshold).float()  # 只保留显著 ROI
-
-    return anatomical_profile
 
 def compute_fiber_roi(fiber_data):
     """
@@ -356,11 +336,9 @@ def compute_fiber_roi(fiber_data):
     """
     # Extract ROI classification data (b, 100)
     roi_data = fiber_data[:, 3, :]
-    print(f'roi data: {roi_data}')
 
     # Remove 0 and get unique ROI classifications
     roi_list = [torch.unique(roi[roi != 0]) for roi in roi_data]
-    print(f'roi_list: {roi_list}')
     return roi_list
 
 
@@ -389,7 +367,9 @@ def train(epoch):
         # get 3d coordinate here for embed
         data_3d = data[:, 0:3, :]
         output, embed, _, _, _, _, _, _, _, _, _ = model(data_3d)
-
+        predic_class = output.data.max(1, keepdim=True)[1]
+        # print(f'predic_class: {predic_class}')
+        # print(f'target class: {target}')
         # focal loss
         floss = focalLoss(output, target)
 
@@ -403,7 +383,7 @@ def train(epoch):
             if args.use_dice_a_loss:
                 anatomical_info = compute_fiber_roi(data)
                 # calculate clustering output using global cluster rois
-                clustering_out, x_dis = clustering_layer(embed, anatomical_info=anatomical_info, cluster_rois=global_cluster_rois)
+                clustering_out, x_dis = clustering_layer(embed, anatomical_info=anatomical_info, cluster_rois=global_cluster_rois, predic=predic_class)
             else:
                 clustering_out, x_dis = clustering_layer(embed)
 
@@ -494,8 +474,8 @@ def test():
             # Compute clustering loss if enabled
             if args.use_clustering_loss:
                 if args.use_dice_a_loss:
-                    anatomical_info = compute_fiber_anatomical_profile(data[:, -1, :], num_anatomical_rois)
-                    clustering_out, x_dis = clustering_layer(embed, anatomical_info=anatomical_info, cluster_rois=global_cluster_rois)
+                    anatomical_info = compute_fiber_roi(data)
+                    clustering_out, x_dis = clustering_layer(embed, anatomical_info=anatomical_info, cluster_rois=global_cluster_rois, predic=output)
                 else:
                     clustering_out, x_dis = clustering_layer(embed)
 
@@ -542,8 +522,8 @@ patience=args.patience
 if args.use_dice_a_loss:
     print(f'Creating cluster level roi profile')
     global_cluster_rois = compute_cluster_roi(X_train, y_train, NCLASS)
-    global_cluster_rois = torch.stack(global_cluster_rois)
-    global_cluster_rois = global_cluster_rois.to(device)  
+    print(device)
+    global_cluster_rois = [rois.to(device) for rois in global_cluster_rois] 
     print(f'cluster level roi profile is created')
     # Print cluster-level ROI classification results
     print("\n===== Cluster-Level ROI Classification =====")
