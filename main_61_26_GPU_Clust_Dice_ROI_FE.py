@@ -36,25 +36,61 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
-GPUINX='0'
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
-os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
+GPUINX='1'
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
+# os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
 np.random.seed(987)
 device = torch.device("cuda:{}".format(GPUINX) if torch.cuda.is_available() else "cpu")
 print(f'device: {device}')
 """v flip and shuffle"""
-# def udflip(X_nparray,y_nparray,shuffle=True):
-#     output=np.zeros((X_nparray.shape[0],X_nparray.shape[1],X_nparray.shape[2]),dtype=np.float32)
-#     for i in range(X_nparray.shape[0]):
-#         # a = X_nparray[i,:] # just for checking the code
-#         output[i,:]=np.flipud(X_nparray[i,:])
-#     output=np.vstack((X_nparray,output))
-#     y=np.hstack((y_nparray,y_nparray))
-#     if shuffle:
-#         shuffle_inx=np.random.permutation(output.shape[0])
-#         return output[shuffle_inx],y[shuffle_inx]
-#     else:
-#         return output,y
+# 假设你的 ROI 分类数量为 693，我们将每个 ROI 映射到 32 维的特征向量
+ROI_EMBEDDING_DIM = 32
+NUM_ROI_CLASSES = 792
+HIDDEN_DIM = 64
+print(f"using ROI with emb: {ROI_EMBEDDING_DIM}")
+# 定义 ROI Embedding 层
+roi_embedding_layer = nn.Embedding(NUM_ROI_CLASSES, ROI_EMBEDDING_DIM).to(device)
+print(f"roi_embedding_layer is on {roi_embedding_layer.weight.device}")
+
+# 定义 ROI Embedding 层
+roi_embedding_layer = nn.Embedding(NUM_ROI_CLASSES, ROI_EMBEDDING_DIM).to(device)
+
+class ROIFeatureExtractor(nn.Module):
+    def __init__(self, embedding_layer, hidden_dim):
+        super(ROIFeatureExtractor, self).__init__()
+        self.embedding = embedding_layer  # 直接使用已有 embedding
+        self.mlp = nn.Sequential(
+            nn.Linear(ROI_EMBEDDING_DIM, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, ROI_EMBEDDING_DIM)
+        )
+
+    def forward(self, roi_input):
+        embedded = self.embedding(roi_input)  # (b, 100, embedding_dim)
+        features = self.mlp(embedded)  # 让 ROI 通过 MLP 提取更有效的特征
+        return features
+
+# 初始化 ROI 提取器
+roi_extractor = ROIFeatureExtractor(roi_embedding_layer, hidden_dim=HIDDEN_DIM).to(device)
+
+def preprocess_fiber_input(data):
+    """
+    处理 Fiber 数据，将 3D 坐标和 ROI 特征拼接作为模型输入
+    """
+    coord_3d = data[:, :3, :].to(device)  # 3D 坐标 (b, 3, 100)
+    roi_indices = data[:, 3, :].long().to(device)  # ROI 索引 (b, 100)
+
+    # 经过 ROI Feature 提取器
+    roi_features = roi_extractor(roi_indices)  # (b, 100, embedding_dim)
+
+    # 重新调整 ROI 维度以拼接
+    roi_features = roi_features.permute(0, 2, 1)  # (b, embedding_dim, 100)
+
+    # 拼接 3D 坐标和 ROI 特征
+    processed_data = torch.cat([coord_3d, roi_features], dim=1)  # (b, 3 + embedding_dim, 100)
+    return processed_data
+
+
 def udflip(X_nparray, y_nparray, shuffle=True):
 
     if X_nparray.shape[2] == 4:
@@ -220,7 +256,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
     
 """build datasets"""
-with open('../data_61_26_ROIV2.pkl','rb') as f:
+with open('../data_47_20_ROI_Final.pkl','rb') as f:
     data=pickle.load(f)
 
 # raise ValueError('Please check the data file path')
@@ -232,18 +268,22 @@ X_test=dataList[1] # no_tractsx4x100
 
 # check with a small dataset
 # also test withh only 20 points per fiber: 1 point every 5 points
-indices_train = np.random.choice(X_train.shape[0], size=500000, replace=False)
-indices_test = np.random.choice(X_test.shape[0], size=50000, replace=False)
+# indices_train = np.random.choice(X_train.shape[0], size=500000, replace=False)
+# indices_test = np.random.choice(X_test.shape[0], size=50000, replace=False)
 
-X_train, y_train = X_train[indices_train, :, ::], data['y_train'][indices_train]
-X_test, y_test = X_test[indices_test, :, ::], data['y_test'][indices_test]
+# X_train, y_train = X_train[indices_train, :, ::], data['y_train'][indices_train]
+# X_test, y_test = X_test[indices_test, :, ::], data['y_test'][indices_test]
+
+# TODO full testing
+X_train, y_train = X_train, data['y_train']
+X_test, y_test = X_test, data['y_test']
 
 # Original Data - Many Fibers
 # X_train, y_train = X_train[:, :, ::5], data['y_train'][:]
 # X_test, y_test = X_test[:, :, ::5], data['y_test'][:]
 
 # y_test_list=data['y_test'].tolist() # Original test set - many fibers
-y_test_list=data['y_test'][indices_test].tolist() # select only "indices_test" no. of fibers for testing with small dataset
+y_test_list=data['y_test'].tolist() # select only "indices_test" no. of fibers for testing with small dataset
 
 NCLASS=max(y_test_list)+1
 num_anatomical_rois = 693
@@ -270,7 +310,7 @@ tst_set=utils.TensorDataset(X_test,y_test)
 tst_loader=utils.DataLoader(tst_set,batch_size=args.test_batch_size,shuffle=False,**kwargs)
 
 """init model"""
-model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS)
+model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3+ROI_EMBEDDING_DIM)
 loss_nll = nn.NLLLoss(size_average=True) # log-softmax applied in the network
 # init ROI cluster
 # Center Loss
@@ -286,11 +326,13 @@ clustering_layer = ClusterlingLayer(embedding_dimension=512, num_clusters=NCLASS
 # If you change the embedding dimension in the model, you need to change it in the CenterLoss and ClusteringLayer as well. 
 
 if args.cuda:
-    model.cuda()
-    loss_nll.cuda()
-    kl_loss.cuda()
-    centerloss.cuda()
-    clustering_layer.cuda()
+    model.to(device)
+    loss_nll.to(device)
+    kl_loss.to(device)
+    centerloss.to(device)
+    clustering_layer.to(device)
+    roi_extractor.to(device)
+
 
 optimizer_nll = AdamW(model.parameters(),lr=args.lr)
 optimizer_center = AdamW(centerloss.parameters(),lr=args.lr)
@@ -360,12 +402,13 @@ def train(epoch):
         
         # print(f'\batch_idx: {batch_idx}')
         labels += target.numpy().tolist()
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
+        # if args.cuda:
+        data, target = data.to(device), target.to(device)
         data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
         
-        # get 3d coordinate here for embed
-        data_3d = data[:, 0:3, :]
+        # get 3d coordinate here for embed, here we use 3D + ROI embed
+        data_3d = preprocess_fiber_input(data)
+        # print(f'data_3d: {data_3d.shape}')
         output, embed, _, _, _, _, _, _, _, _, _ = model(data_3d)
         predic_class = output.data.max(1, keepdim=True)[1]
         # print(f'predic_class: {predic_class}')
@@ -455,12 +498,12 @@ def test():
     with torch.no_grad():
         for data, target in tst_loader:
             labels += target.cpu().numpy().tolist()
-            if args.cuda:
-                data, target = data.cuda(), target.cuda()
+            # if args.cuda:
+            data, target = data.to(device), target.to(device)
             data, target = Variable(data), Variable(target)
 
             # Extract 3D coordinates for embedding input
-            data_3d = data[:, 0:3, :]
+            data_3d = preprocess_fiber_input(data)
             output, embed, _, _, _, _, _, _, _, _, _ = model(data_3d)
 
             # Compute focal loss
@@ -519,10 +562,10 @@ history=list()
 avg_training_loss_record=list()
 avg_testing_loss_record=list()
 patience=args.patience
+print(device)
 if args.use_dice_a_loss:
     print(f'Creating cluster level roi profile')
     global_cluster_rois = compute_cluster_roi(X_train, y_train, NCLASS)
-    print(device)
     global_cluster_rois = [rois.to(device) for rois in global_cluster_rois] 
     print(f'cluster level roi profile is created')
     # Print cluster-level ROI classification results

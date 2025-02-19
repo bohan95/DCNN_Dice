@@ -103,11 +103,11 @@ def branchBottleNeck(channel_in, channel_out, kernel_size):
 
     
 class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=15):
+    def __init__(self, block, layers, num_classes=15, input_ch = 3):
         self.inplanes=64
         groupNum=1
         super(ResNet,self).__init__()
-        self.conv1=nn.Conv1d(3,64,kernel_size=3,stride=1,padding=1,bias=False) # without ROI info
+        self.conv1=nn.Conv1d(input_ch,64,kernel_size=3,stride=1,padding=1,bias=False) # without ROI info
         # self.conv1=nn.Conv1d(4,64,kernel_size=3,stride=1,padding=1,bias=False) # with ROI info (4 channels: 3 for coordinates and 1 for ROI)
         self.bn1=nn.BatchNorm1d(64)
         self.att=nn.Conv1d(64,1,kernel_size=1,bias=True)

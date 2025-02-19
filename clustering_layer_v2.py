@@ -23,8 +23,9 @@ class ClusterlingLayer(nn.Module):
             # print(f'anatomical_info: {predic.shape}')
             # print(f'anatomical_info: {cluster_rois.shape}')
             dice_loss_anatomical = self.dice_loss_fiber(anatomical_info, cluster_rois).to(x.device)
-            soft_label_adjustment = torch.exp(-self.lambda_dice * dice_loss_anatomical).to(x.device)
+            soft_label_adjustment = torch.exp(-self.lambda_dice * dice_loss_anatomical).to(x.device)     
         else:
+            dice_loss_anatomical = 1.0
             soft_label_adjustment = 1.0
 
         # print(f'x before:{x}')
@@ -44,43 +45,34 @@ class ClusterlingLayer(nn.Module):
 
     def dice_loss_fiber(self, fiber_data, cluster_roi_true, smooth=1e-6):
         """
-        Compute Dice Loss for each fiber against all clusters.
-
-        Parameters:
-            fiber_data: List[Tensor], 每个 fiber 的 ROI category，长度等于 batch_size。
-            cluster_roi_true: List[Tensor], 每个 cluster 的 ROI category，长度等于 num_clusters。
-            smooth: float, 避免除零的小数值。
-
-        Returns:
-            dice_losses: Tensor, shape (batch_size, num_clusters)，
-                        每个 fiber 和每个 cluster 的 Dice Loss。
+        计算 batch 里的 fiber 和 cluster 的 Dice Loss，向量化实现
+        fiber_data: List[Tensor]，每个 fiber 的 ROI 分类
+        cluster_roi_true: List[Tensor]，每个 cluster 的 ROI 分类
         """
-        batch_size = len(fiber_data)  # Fiber 数量
-        num_clusters = len(cluster_roi_true)  # Cluster 数量
-        dice_losses = torch.zeros((batch_size, num_clusters))  # 结果存储张量
+        batch_size = len(fiber_data)
+        num_clusters = len(cluster_roi_true)
 
-        for batch_idx in range(batch_size):  # 遍历 batch 里的每个 fiber
-            ROI_fiber = fiber_data[batch_idx]  # 当前 fiber 的 ROI
-            fiber_losses = []
+        # 计算 fiber 的 one-hot 形式 (batch_size, num_anatomical_rois)
+        fiber_rois_onehot = torch.zeros((batch_size, 693), device=fiber_data[0].device)
+        for i, roi in enumerate(fiber_data):
+            roi = roi.long()  # 确保索引是 long 类型
+            fiber_rois_onehot[i, roi] = 1  
 
-            for cluster_idx in range(num_clusters):  # 遍历所有 clusters
-                ROI_cluster = cluster_roi_true[cluster_idx]  # 当前 cluster 的 ROI
+        # 计算 cluster 的 one-hot 形式 (num_clusters, num_anatomical_rois)
+        cluster_rois_onehot = torch.zeros((num_clusters, 693), device=fiber_data[0].device)
+        for i, roi in enumerate(cluster_roi_true):
+            roi = roi.long()  # 确保索引是 long 类型
+            cluster_rois_onehot[i, roi] = 1  
 
-                if ROI_fiber.numel() == 0 and ROI_cluster.numel() == 0:
-                    dice_loss = torch.tensor(0.0)  # 两者都是空集，Dice Loss = 0
-                elif ROI_fiber.numel() == 0 or ROI_cluster.numel() == 0:
-                    dice_loss = torch.tensor(1.0)  # 其中一个为空集，Dice Loss = 1
-                else:
-                    # 计算 Dice Loss
-                    intersection = (ROI_fiber.unsqueeze(1) == ROI_cluster.unsqueeze(0)).sum().float()
-                    dice_score = (2. * intersection + smooth) / (ROI_fiber.numel() + ROI_cluster.numel() + smooth)
-                    dice_loss = 1 - dice_score  # 1 - Dice Score = Dice Loss
+        # 计算 intersection（fiber 和 cluster ROI 交集）
+        intersection = (fiber_rois_onehot.unsqueeze(1) * cluster_rois_onehot.unsqueeze(0)).sum(dim=2).float()
 
-                fiber_losses.append(dice_loss)  # 存储当前 fiber 和 cluster 的 loss
+        # 计算 Dice Loss
+        fiber_size = fiber_rois_onehot.sum(dim=1, keepdim=True)
+        cluster_size = cluster_rois_onehot.sum(dim=1, keepdim=True).T
+        dice_score = (2.0 * intersection + smooth) / (fiber_size + cluster_size + smooth)
 
-            dice_losses[batch_idx, :] = torch.stack(fiber_losses)  # 存入 batch 结果
-
-        return dice_losses  # Shape: (batch_size, num_clusters)
+        return 1 - dice_score  # (batch_size, num_clusters)
 
 
 
