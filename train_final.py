@@ -48,10 +48,6 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
     log_clustering_loss = 0.0
     preds = []
     labels = []
-    print(f'args.use_clustering_loss: {args.use_clustering_loss}')
-    print(f'args.use_dice_a_loss: {args.use_dice_a_loss}')
-    print(f'args.use_center_loss: {args.use_center_loss}')
-    print(f'args.clustering_weight: {args.clustering_weight}')
     global global_cluster_rois
     for batch_idx, (data, target) in enumerate(trn_loader):
 
@@ -285,6 +281,13 @@ if __name__ == "__main__":
     parser.add_argument('--device', type=str, default='0', metavar='RT',
                         help='device num')
     args = parser.parse_args()
+
+    print(f'args.use_clustering_loss: {args.use_clustering_loss}')
+    print(f'args.use_dice_a_loss: {args.use_dice_a_loss}')
+    print(f'args.use_center_loss: {args.use_center_loss}')
+    print(f'args.clustering_weight: {args.clustering_weight}')
+
+
     # print(args.batch_size)
     torch.manual_seed(args.seed)
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -420,6 +423,29 @@ if __name__ == "__main__":
         print("\n===== Cluster-Level ROI Classification =====")
         for cluster_id, rois in enumerate(global_cluster_rois):
             print(f"Cluster {cluster_id}: size {len(rois.tolist())}")
+
+    network_design = ''
+    loss_design = 'focal_loss_'
+    if args.use_feature_extractor:
+        network_design = 'FE'
+    elif args.use_embedding:
+        network_design = 'EB'
+    elif args.use_concat:
+        network_design = 'concat'
+    else:
+        network_design =  'no_roi'
+                
+    if args.use_clustering_loss and args.use_dice_a_loss:
+        loss_design += f'and_dice_cluster_loss_c_{args.clustering_weight}_'
+    elif args.use_clustering_loss:
+        loss_design += f'and_cluster_loss_c_{args.clustering_weight}_'
+
+    if args.use_center_loss:
+        loss_design += 'and_center_loss_'
+
+    model_saved_name = f'{loss_design}{network_design}.model'
+    print(f'saved name: {model_saved_name}')
+
     for epoch in range(0,args.epochs):
         t0=time.time()
         avg_training_loss=train_step(epoch, args=args, model=model, roi_embedding_layer=roi_embedding_layer, roi_extractor=roi_extractor, device=device)
@@ -434,28 +460,9 @@ if __name__ == "__main__":
             patience=args.patience
             best_f1=f1
             best_epoch_idx=epoch
-            network_design = ''
-            loss_design = 'focal_loss_'
-            if args.use_feature_extractor:
-                network_design = 'FE'
-            elif args.use_embedding:
-                network_design = 'EB'
-            elif args.use_concat:
-                network_design = 'concat'
-            else:
-                network_design =  'no_roi'
-                      
-            if args.use_clustering_loss and args.use_dice_a_loss:
-                loss_design += 'and_dice_cluster_loss_'
-            elif args.use_clustering_loss:
-                loss_design += 'and_cluster_loss_'
-            elif args.use_center_loss:
-                loss_design += 'and_center_loss_'
-            else:
-                print('name incorrect')
-            model_saved_name = f'{loss_design}{network_design}.model'
+  
             torch.save(model.state_dict(),model_saved_name)
-            print(f'saved name: {model_saved_name}')
+            
         else:
             patience-=1
             if patience==0:
