@@ -282,8 +282,8 @@ if __name__ == "__main__":
                         help='number of ROI classes')
     parser.add_argument('--emb_dim', type=float, default=32, metavar='RT',
                         help='number of embedding dim')
-    parser.add_argument('--device', type=str, default='cpu', metavar='RT',
-                        help='device name')
+    parser.add_argument('--device', type=str, default='0', metavar='RT',
+                        help='device num')
     args = parser.parse_args()
     # print(args.batch_size)
     torch.manual_seed(args.seed)
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
     #TODO check use case
-    GPUINX='0'
+    GPUINX=args.device
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
     os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
     np.random.seed(987)
