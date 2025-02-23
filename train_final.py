@@ -304,10 +304,10 @@ if __name__ == "__main__":
     device = torch.device("cuda:{}".format(GPUINX) if torch.cuda.is_available() else "cpu")
     print(f'device: {device}')   
     """build datasets"""
-    # with open('../data_47_20_ROI_Final.pkl','rb') as f:
-    #     data=pickle.load(f)
-    with open('../data_47_20_ROI_Final_0.2downsample.pkl','rb') as f:
+    with open('../data_47_20_ROI_Final.pkl','rb') as f:
         data=pickle.load(f)
+    # with open('../data_47_20_ROI_Final_0.2downsample.pkl','rb') as f:
+    #     data=pickle.load(f)
 
     # raise ValueError('Please check the data file path')
         
@@ -467,6 +467,8 @@ if __name__ == "__main__":
                 torch.save(roi_extractor.state_dict(),'FE_layer_' + model_saved_name)
             elif args.use_embedding:
                 torch.save(roi_embedding_layer.state_dict(),'EB_layer_' + model_saved_name)
+            if args.use_clustering_loss:
+                torch.save(clustering_layer.state_dict(),'CLS_layer_' + model_saved_name)
         else:
             patience-=1
             if patience==0:

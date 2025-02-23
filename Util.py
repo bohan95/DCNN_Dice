@@ -183,3 +183,24 @@ def focalLoss(output,target, loss_nll):
     wp = w.view(-1,1) * (1-p).pow(gamma) * logp
     # TODO here we need to divided by batch size
     return loss_nll(wp,target.long()) / target.shape[0]
+
+
+def aug_at_test(probs,mode='max'):
+    assert(len(probs)>0)
+    if(mode=='max'):
+        all_probs=np.vstack(probs)
+        max_probs=np.amax(all_probs,axis=1).reshape((2,-1))#row 0: prob for first half, row 1: prob for flipped half
+        max_idx=np.argmax(max_probs,axis=0)#should be 0/1
+        test_sample_count=all_probs.shape[0]/2
+        
+        class_pred=np.argmax(all_probs,axis=1)
+        final_pred=list()
+        for i in range(max_idx.shape[0]):
+            final_pred.append(class_pred[int(i+test_sample_count*max_idx[i])])#if 0, first half
+        return final_pred
+    if(mode=='mean'):
+        all_probs=np.exp(np.vstack(probs))
+        test_sample_count=int(all_probs.shape[0]/2)
+        final_probs=all_probs[0:test_sample_count]+all_probs[test_sample_count:]
+        final_pred=np.argmax(final_probs,axis=1)
+        return final_pred.tolist()
