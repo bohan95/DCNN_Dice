@@ -274,7 +274,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--use_concat', action='store_true', 
                         default=False, help='use directly concat for ROI data')
-    parser.add_argument('--num_roi', type=float, default=792, metavar='RT',
+    parser.add_argument('--num_roi', type=int, default=726, metavar='RT',
                         help='number of ROI classes')
     parser.add_argument('--emb_dim', type=float, default=32, metavar='RT',
                         help='number of embedding dim')
@@ -304,7 +304,9 @@ if __name__ == "__main__":
     device = torch.device("cuda:{}".format(GPUINX) if torch.cuda.is_available() else "cpu")
     print(f'device: {device}')   
     """build datasets"""
-    with open('../data_47_20_ROI_Final.pkl','rb') as f:
+    # with open('../data_47_20_ROI_Final.pkl','rb') as f:
+    #     data=pickle.load(f)
+    with open('../data_47_20_ROI_Final_0.2downsample.pkl','rb') as f:
         data=pickle.load(f)
 
     # raise ValueError('Please check the data file path')
@@ -330,7 +332,6 @@ if __name__ == "__main__":
         y_test_list=data['y_test'].tolist() # select only "indices_test" no. of fibers for testing with small dataset
 
     NCLASS = max(y_test_list) + 1
-    # num_anatomical_rois = 693
     # data augmentation
     X_train, Y_train = udflip(X_train, Y_train, shuffle=True)
     X_test, Y_test = udflip(X_test, Y_test, shuffle=False)
@@ -358,7 +359,7 @@ if __name__ == "__main__":
     """init model"""
     if args.use_feature_extractor:
         ROI_EMBEDDING_DIM = args.emb_dim
-        NUM_ROI_CLASSES = args.num_roi
+        NUM_ROI_CLASSES = args.num_roi + 1
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3+ROI_EMBEDDING_DIM)
         # init ROI Embedding layer
         roi_embedding_layer = nn.Embedding(NUM_ROI_CLASSES, ROI_EMBEDDING_DIM).to(device)
@@ -367,7 +368,7 @@ if __name__ == "__main__":
         roi_extractor.to(device)
     elif args.use_embedding:
         ROI_EMBEDDING_DIM = args.emb_dim
-        NUM_ROI_CLASSES = args.num_roi
+        NUM_ROI_CLASSES = args.num_roi + 1
         # init ROI Embedding layer
         roi_embedding_layer = nn.Embedding(NUM_ROI_CLASSES, ROI_EMBEDDING_DIM).to(device)
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3+ROI_EMBEDDING_DIM)

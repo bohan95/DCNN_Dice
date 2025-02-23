@@ -53,13 +53,14 @@ class ClusterlingLayer(nn.Module):
         num_clusters = len(cluster_roi_true)
 
         # 计算 fiber 的 one-hot 形式 (batch_size, num_anatomical_rois)
-        fiber_rois_onehot = torch.zeros((batch_size, 693), device=fiber_data[0].device)
+        fiber_rois_onehot = torch.zeros((batch_size, 726), device=fiber_data[0].device)
+        # print(fiber_data)
         for i, roi in enumerate(fiber_data):
             roi = roi.long()  # 确保索引是 long 类型
             fiber_rois_onehot[i, roi] = 1  
 
         # 计算 cluster 的 one-hot 形式 (num_clusters, num_anatomical_rois)
-        cluster_rois_onehot = torch.zeros((num_clusters, 693), device=fiber_data[0].device)
+        cluster_rois_onehot = torch.zeros((num_clusters, 726), device=fiber_data[0].device)
         for i, roi in enumerate(cluster_roi_true):
             roi = roi.long()  # 确保索引是 long 类型
             cluster_rois_onehot[i, roi] = 1  
