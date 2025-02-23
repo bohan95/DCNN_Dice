@@ -463,7 +463,10 @@ if __name__ == "__main__":
             best_epoch_idx=epoch
   
             torch.save(model.state_dict(),model_saved_name)
-            
+            if args.use_feature_extractor:
+                torch.save(roi_extractor.state_dict(),'FE_layer_' + model_saved_name)
+            elif args.use_embedding:
+                torch.save(roi_embedding_layer.state_dict(),'EB_layer_' + model_saved_name)
         else:
             patience-=1
             if patience==0:
