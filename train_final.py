@@ -369,8 +369,6 @@ if __name__ == "__main__":
     elif args.use_embedding:
         ROI_EMBEDDING_DIM = args.emb_dim
         NUM_ROI_CLASSES = args.num_roi + 1
-        print(NUM_ROI_CLASSES)
-        print(ROI_EMBEDDING_DIM)
         # init ROI Embedding layer
         roi_embedding_layer = nn.Embedding(NUM_ROI_CLASSES, ROI_EMBEDDING_DIM).to(device)
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3+ROI_EMBEDDING_DIM)
