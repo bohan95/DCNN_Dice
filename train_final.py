@@ -374,7 +374,7 @@ if __name__ == "__main__":
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3+ROI_EMBEDDING_DIM)
     elif args.use_concat:
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=4)
-
+    
     else:
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3)
 
