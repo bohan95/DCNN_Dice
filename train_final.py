@@ -63,7 +63,7 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
         elif args.use_concat:
             data_processed = preprocess_fiber_input(data, device=device, net_type='concat')
         else:
-            data_processed = preprocess_fiber_input(data, device=device) 
+            data_processed = preprocess_fiber_input(data, device=device, net_type='no_roi') 
 
         output, embed, _, _, _, _, _, _, _, _, _ = model(data_processed)
         predic_class = output.data.max(1, keepdim=True)[1]
@@ -175,7 +175,7 @@ def test(epoch, model, args, roi_extractor=None, roi_embedding_layer=None, devic
             elif args.use_concat:
                 data_processed = preprocess_fiber_input(data, device=device, net_type='concat')
             else:
-                data_processed = preprocess_fiber_input(data, device=device) 
+                data_processed = preprocess_fiber_input(data, device=device, net_type='no_roi') 
             output, embed, _, _, _, _, _, _, _, _, _ = model(data_processed)
 
             # Compute focal loss
@@ -376,9 +376,7 @@ if __name__ == "__main__":
         model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=4)
     
     else:
-        print("3D only")
-        model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3)  
-
+        model=RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3)
 
     # by defaul focal loss is used
     loss_nll = nn.NLLLoss(size_average=True) # log-softmax applied in the network
