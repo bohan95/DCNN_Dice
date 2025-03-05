@@ -1,59 +1,94 @@
 import os
+import sys
+# del os.environ['MKL_NUM_THREADS'] # error corrected by MH 10/12/2022 (add these three lines)
 import torch
+from torch.autograd import Variable
 import torch.utils.data as utils
 import numpy as np
+import gc
+import sys
 import scipy.io as spio
 import h5py
 import RESNET152_ATT_naive
+import torch
+import numpy as np
+import h5py
 import time
+import gc
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+import torch.utils.data as utils
+# 数据加载
+import os
+import sys
+# del os.environ['MKL_NUM_THREADS'] # error corrected by MH 10/12/2022 (add these three lines)
 from Embedding_layer import ROIFeatureExtractor
-from Util import preprocess_fiber_input
+import torch
+from torch.autograd import Variable
+import torch.utils.data as utils
+import numpy as np
+import gc
+import sys
+import scipy.io as spio
+import RESNET152_ATT_naive
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+import torch.nn as nn
+from Util import focalLoss, preprocess_fiber_input
 from clustering_layer_v2 import ClusterlingLayer
+from klDiv import KLDivLoss
 from sklearn.metrics import roc_auc_score, average_precision_score
 import torch.nn.functional as F
 import argparse
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, roc_auc_score, average_precision_score
+
 def loadmat(filename):
     '''
-    Read MATLAB v7.3 `.mat` file (Whole_tracks as tracks)
+    读取 MATLAB v7.3 `.mat` 文件（Whole_tracks 作为 tracks）
     '''
     output = dict()
     
-    # open HDF5 MAT file
+    # 打开 HDF5 MAT 文件
     with h5py.File(filename, 'r') as data:
-        # read Whole_tracks 
+        # 读取 Whole_tracks 变量
         if 'Whole_tracks' not in data:
-            raise KeyError("❌ Error: 'Whole_tracks' doen't exist!")
+            raise KeyError("❌ 错误: 'Whole_tracks' 变量不存在！")
 
-        whole_tracks = data['Whole_tracks']  # Structure Whole_tracks
+        whole_tracks = data['Whole_tracks']  # 结构体 Whole_tracks
 
-        # make sure it has `count` and `data`
+        # 确保它有 `count` 和 `data`
         if 'count' not in whole_tracks or 'data' not in whole_tracks:
-            raise KeyError(f"❌ Error: 'Whole_tracks' is incompleted! includes: {list(whole_tracks.keys())}")
+            raise KeyError(f"❌ 错误: 'Whole_tracks' 结构不完整！包含: {list(whole_tracks.keys())}")
 
-        # read count
+        # 读取 count（可能是字符编码格式，需要解析）
         count = whole_tracks['count'][()]  
-        print("🔍 Whole_tracks['count'] data:", count)
-        print("🔍 data type:", type(count))
+        print("🔍 Whole_tracks['count'] 数据:", count)
+        print("🔍 数据类型:", type(count))
 
-        # covert to int
+        # 直接转换成整数
         total_count = int(count.item())
         print(f'total_count: {total_count}')
-        # read Whole_tracks['data']
+        # 读取 Whole_tracks['data']
         track = []
         for i in range(total_count):
             data_ref = whole_tracks['data'][i].item()
             track.append(np.transpose(data[data_ref][:]).astype(np.float32))
 
-        # add result
+        # 组织输出
         output['tracks'] = {
             'count': total_count,
             'data': track
         }
     
     return output
-      
+
+def _check_keys(dict):
+    '''
+    checks if entries in dictionary are mat-objects. If yes
+    todict is called to change them to nested dictionaries
+    '''
+    for key in dict:
+        if isinstance(dict[key], spio.matlab.mio5_params.mat_struct):
+            dict[key] = _todict(dict[key])
+    return dict        
+
 def _todict(matobj):
     '''
     A recursive function which constructs from matobjects nested dictionaries
@@ -86,6 +121,23 @@ def rescale(X_list,count):
         output.append(X_list[i]/110)
     return output
 
+def udflip(X_nparray, y_nparray, shuffle=True):
+
+    if X_nparray.shape[2] == 4:
+        if np.std(X_nparray[:, 0, :]) > np.std(X_nparray[:, -1, :]):
+            print("Detected special info in first column, swapping...")
+            X_nparray = np.concatenate((X_nparray[:, 1:, :], X_nparray[:, 0:1, :]), axis=1)
+    
+    X_flipped = np.flip(X_nparray, axis=2)  
+
+    X_aug = np.vstack((X_nparray, X_flipped))
+    y_aug = np.hstack((y_nparray, y_nparray))  
+
+    if shuffle:
+        shuffle_idx = np.random.permutation(X_aug.shape[0])
+        return X_aug[shuffle_idx], y_aug[shuffle_idx]
+    else:
+        return X_aug, y_aug
 def datato3d(arrays):#list of np arrays, NULL*3*100
     output=list()
     for i in arrays:
@@ -133,26 +185,26 @@ def aug_at_test(probs,mode='max'):
         return final_pred.tolist()    
 
 def loadmat(filename):
-    """ read MATLAB v7.3 .mat file """
+    """ 读取 MATLAB v7.3 .mat 文件 """
     with h5py.File(filename, 'r') as data:
         if 'Whole_tracks' not in data:
-            raise KeyError("❌ Error: 'Whole_tracks' doen't exist")
+            raise KeyError("❌ 错误: 'Whole_tracks' 变量不存在！")
         
         whole_tracks = data['Whole_tracks']
         if 'count' not in whole_tracks or 'data' not in whole_tracks:
-            raise KeyError(f"❌ Error: 'Whole_tracks' Structure is incompleted: {list(whole_tracks.keys())}")
+            raise KeyError(f"❌ 错误: 'Whole_tracks' 结构不完整！包含: {list(whole_tracks.keys())}")
 
-        # read count
+        # 读取 count
         count = int(whole_tracks['count'][()].item())
         track = [np.transpose(data[whole_tracks['data'][i].item()][:]).astype(np.float32) for i in range(count)]
     
     return {'tracks': {'count': count, 'data': track}}
 
 def load_labels(label_path):
-    """ read label .mat file """
+    """ 读取标签 .mat 文件 """
     with h5py.File(label_path, 'r') as data:
         if 'class_label' not in data:
-            raise KeyError("❌ Error: 'class_label' is not exisit")
+            raise KeyError("❌ 错误: 'class_label' 变量不存在！")
         
         class_label = data['class_label'][()]
         
@@ -168,10 +220,16 @@ def load_labels(label_path):
         return class_label
 
 
-
+import os
+import numpy as np
+import torch
+from torch.autograd import Variable
+import torch.utils.data as utils
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, roc_auc_score, average_precision_score
+import torch.nn.functional as F
 
 def process_file(matpath, label_path, model, roi_extractor, clustering_layer, device, NCLASS, args_test_batch_size):
-    """ Process a single test file and return its metrics """
+    """ 处理单个测试文件，并返回其指标 """
     print(f"📌 preprocess data: {matpath}")
     
     mat = loadmat(matpath)
@@ -179,22 +237,22 @@ def process_file(matpath, label_path, model, roi_extractor, clustering_layer, de
     X_test = np.asarray(X_test).astype(np.float32)
     X_test_original = np.transpose(X_test, (0, 2, 1))
 
-    # read label
+    # 读取标签
     y_test = load_labels(label_path)
     y_test_list = y_test
 
-    # Data Enhancement
+    # 数据增强
     X_test, y_test = udflip(X_test_original, y_test, shuffle=False)
 
-    # Convert to PyTorch Tensor and move to the same device
-    y_test = torch.from_numpy(y_test.astype(np.int64)).to(device)  # Make sure the label is on the correct device as well
+    # 转换为 PyTorch Tensor 并移动到相同设备
+    y_test = torch.from_numpy(y_test.astype(np.int64)).to(device)  # 确保标签也在正确设备上
     X_test = torch.from_numpy(X_test).to(device)
 
     kwargs = {'num_workers': 0, 'pin_memory': False}
     tst_set = utils.TensorDataset(X_test, y_test)
     tst_loader = utils.DataLoader(tst_set, batch_size=args_test_batch_size, shuffle=False, **kwargs)
 
-    # Make sure that the model and layers are on the same device
+    # **确保模型和 layers 都在同一个设备**
     model.to(device)
     roi_extractor.to(device)
     clustering_layer.to(device)
@@ -204,25 +262,26 @@ def process_file(matpath, label_path, model, roi_extractor, clustering_layer, de
 
     probs, labels = [], []
 
+    loss_nll = torch.nn.NLLLoss()
     with torch.no_grad():
         for data, target in tst_loader:
             labels += target.cpu().numpy().tolist()
 
-            # Make sure both data and target are on the same device
+            # 确保 data 和 target 都在同一设备
             data, target = data.to(device), target.to(device)
 
-            # Preprocessing data
+            # 预处理数据
             data_processed = preprocess_fiber_input(data, roi_extractor=roi_extractor, device=device, net_type='FE')
 
-            # Send to the model
-            output, embed, *_ = model(data_processed)  
+            # 送入模型
+            output, embed, *_ = model(data_processed)  # **确保 model 已被移动到 `device`**
 
-            probs.append(output.data.cpu().numpy())  
+            probs.append(output.data.cpu().numpy())  # 确保 probs 存储在 CPU
 
-    # Calculate the final prediction
+    # 计算最终预测
     preds = aug_at_test(probs, mode='max')
 
-    # Calculate indicators
+    # 计算指标
     conf_mat = confusion_matrix(y_test_list, preds)
     precision, recall, f1, _ = precision_recall_fscore_support(y_test_list, preds, average='macro')
 
@@ -242,12 +301,12 @@ def process_file(matpath, label_path, model, roi_extractor, clustering_layer, de
 
 
 def main():
-    data_dir = '../Testing_Set/'  # Data Directory
-    classnum = 15  # Number of categories
+    data_dir = '../Testing_Set/'  # 数据目录
+    classnum = 15  # 类别数
     args_test_batch_size = 10000
     NCLASS = int(classnum)
 
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
     print(f'device: {device}')
 
     model = RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3+32)
@@ -255,12 +314,12 @@ def main():
     roi_extractor = ROIFeatureExtractor(roi_embedding_layer, 32, hidden_dim=64).to(device)
     clustering_layer = ClusterlingLayer(embedding_dimension=512, num_clusters=NCLASS, alpha=1.0).to(device)
 
-    # Loading model weights
-    model.load_state_dict(torch.load('focal_loss_and_cluster_loss_c_10.0_FE_dim_32.model', map_location=device))
-    roi_extractor.load_state_dict(torch.load('FE_layer_focal_loss_and_cluster_loss_c_10.0_FE_dim_32.model', map_location=device))
-    clustering_layer.load_state_dict(torch.load('CLS_layer_focal_loss_and_cluster_loss_c_10.0_FE_dim_32.model', map_location=device))
+    # 加载模型权重
+    model.load_state_dict(torch.load('focal_loss_and_cluster_loss_c_100.0_FE_dim_32.model', map_location=device))
+    roi_extractor.load_state_dict(torch.load('FE_layer_focal_loss_and_cluster_loss_c_100.0_FE_dim_32.model', map_location=device))
+    clustering_layer.load_state_dict(torch.load('CLS_layer_focal_loss_and_cluster_loss_c_100.0_FE_dim_32.model', map_location=device))
 
-    # Iterate through all .mat files
+    # 遍历所有 .mat 文件
     results = []
     for filename in os.listdir(data_dir):
         if filename.endswith('_tracks.mat'):
@@ -268,25 +327,25 @@ def main():
             label_path = matpath.replace('_tracks.mat', '_class_label.mat')
 
             if not os.path.exists(label_path):
-                print(f"❌ Label file not found: {label_path}")
+                print(f"❌ 找不到标签文件: {label_path}")
                 continue
             start_time = time.time()
             precision, recall, f1, auroc, auprc = process_file(
                 matpath, label_path, model, roi_extractor, clustering_layer, device, NCLASS, args_test_batch_size
             )
             print(time.time()-start_time,'seconds')
-            print(f"📊 {filename} results:")
+            print(f"📊 {filename} 指标:")
             print(f"  Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
             print(f"  AUROC: {auroc:.4f}, AUPRC: {auprc:.4f}")
 
             results.append([precision, recall, f1, auroc, auprc])
 
-    # Calculate the mean and standard deviation
+    # 计算均值和标准差
     results = np.array(results)
     mean_values = np.mean(results, axis=0)
     std_values = np.std(results, axis=0)
 
-    print("\n📊 Average metrics for all test files:")
+    print("\n📊 所有测试文件的平均指标:")
     print(f"  Precision: {mean_values[0]:.4f} ± {std_values[0]:.4f}")
     print(f"  Recall: {mean_values[1]:.4f} ± {std_values[1]:.4f}")
     print(f"  F1-score: {mean_values[2]:.4f} ± {std_values[2]:.4f}")
