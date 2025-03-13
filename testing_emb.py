@@ -313,9 +313,9 @@ def main():
     clustering_layer = ClusterlingLayer(embedding_dimension=512, num_clusters=NCLASS, alpha=1.0).to(device)
 
     # 加载模型权重
-    model.load_state_dict(torch.load('focal_loss_and_cluster_loss_c_10.0_EB_dim_64.model', map_location=device))
-    clustering_layer.load_state_dict(torch.load('CLS_layer_focal_loss_and_cluster_loss_c_10.0_EB_dim_64.model', map_location=device))
-    roi_embedding_layer.load_state_dict(torch.load('EB_layer_focal_loss_and_cluster_loss_c_10.0_EB_dim_64.model', map_location=device))
+    model.load_state_dict(torch.load('new_dataset_ckp/focal_loss_and_cluster_loss_c_10.0_EB_dim_64.model', map_location=device))
+    clustering_layer.load_state_dict(torch.load('new_dataset_ckp/CLS_layer_focal_loss_and_cluster_loss_c_10.0_EB_dim_64.model', map_location=device))
+    roi_embedding_layer.load_state_dict(torch.load('new_dataset_ckp/EB_layer_focal_loss_and_cluster_loss_c_10.0_EB_dim_64.model', map_location=device))
     # 遍历所有 .mat 文件
     results = []
     for filename in os.listdir(data_dir):

@@ -204,3 +204,157 @@ def aug_at_test(probs,mode='max'):
         final_probs=all_probs[0:test_sample_count]+all_probs[test_sample_count:]
         final_pred=np.argmax(final_probs,axis=1)
         return final_pred.tolist()
+    
+    
+def loadmat(filename):
+    '''
+    Read MATLAB v7.3 `.mat` file (Whole_tracks as tracks)
+    '''
+    output = dict()
+    
+    # open HDF5 MAT file
+    with h5py.File(filename, 'r') as data:
+        # read Whole_tracks 
+        if 'Whole_tracks' not in data:
+            raise KeyError("❌ Error: 'Whole_tracks' doen't exist!")
+
+        whole_tracks = data['Whole_tracks']  # Structure Whole_tracks
+
+        # make sure it has `count` and `data`
+        if 'count' not in whole_tracks or 'data' not in whole_tracks:
+            raise KeyError(f"❌ Error: 'Whole_tracks' is incompleted! includes: {list(whole_tracks.keys())}")
+
+        # read count
+        count = whole_tracks['count'][()]  
+        print("🔍 Whole_tracks['count'] data:", count)
+        print("🔍 data type:", type(count))
+
+        # covert to int
+        total_count = int(count.item())
+        print(f'total_count: {total_count}')
+        # read Whole_tracks['data']
+        track = []
+        for i in range(total_count):
+            data_ref = whole_tracks['data'][i].item()
+            track.append(np.transpose(data[data_ref][:]).astype(np.float32))
+
+        # add result
+        output['tracks'] = {
+            'count': total_count,
+            'data': track
+        }
+    
+    return output
+      
+def _todict(matobj):
+    '''
+    A recursive function which constructs from matobjects nested dictionaries
+    '''
+    dict = {}
+    for strg in matobj._fieldnames:
+        elem = matobj.__dict__[strg]
+        if isinstance(elem, spio.matlab.mio5_params.mat_struct):
+            dict[strg] = _todict(elem)
+        else:
+            dict[strg] = elem
+    return dict
+
+#%%
+def mySoftmax(z):
+    assert len(z.shape) == 2
+    s = np.max(z, axis=1)
+    s = s[:, np.newaxis] # necessary step to do broadcasting
+    e_x = np.exp(z - s)
+    div = np.sum(e_x, axis=1)
+    div = div[:, np.newaxis] # dito
+    return e_x / div
+"""normalize"""#110
+def rescale(X_list,count):
+    output=list()
+    if count==1:
+        output.append(X_list/110)
+        return output
+    for i in range(len(X_list)):
+        output.append(X_list[i]/110)
+    return output
+
+def datato3d(arrays):#list of np arrays, NULL*3*100
+    output=list()
+    for i in arrays:
+        i=np.squeeze(i,axis=1)
+        i=np.transpose(i,(0,2,1))
+        output.append(i)
+    return output
+def udflip(X_nparray, y_nparray, shuffle=True):
+
+    if X_nparray.shape[2] == 4:
+        if np.std(X_nparray[:, 0, :]) > np.std(X_nparray[:, -1, :]):
+            print("Detected special info in first column, swapping...")
+            X_nparray = np.concatenate((X_nparray[:, 1:, :], X_nparray[:, 0:1, :]), axis=1)
+    
+    X_flipped = np.flip(X_nparray, axis=2)  
+    y_nparray = y_nparray.flatten()
+    X_aug = np.vstack((X_nparray, X_flipped))
+    y_aug = np.hstack((y_nparray, y_nparray))  
+
+    if shuffle:
+        shuffle_idx = np.random.permutation(X_aug.shape[0])
+        return X_aug[shuffle_idx], y_aug[shuffle_idx]
+    else:
+        return X_aug, y_aug
+    
+def aug_at_test(probs,mode='max'):
+    assert(len(probs)>0)
+    if(mode=='max'):
+        all_probs=np.vstack(probs)
+        print(all_probs.shape)
+        max_probs=np.amax(all_probs,axis=1).reshape((2,-1))#row 0: prob for first half, row 1: prob for flipped half
+        max_idx=np.argmax(max_probs,axis=0)#should be 0/1
+        test_sample_count=all_probs.shape[0]/2
+        
+        class_pred=np.argmax(all_probs,axis=1)
+        final_pred=list()
+        for i in range(max_idx.shape[0]):
+            final_pred.append(class_pred[int(i+test_sample_count*max_idx[i])])#if 0, first half
+        return final_pred
+    if(mode=='mean'):
+        all_probs=np.exp(np.vstack(probs))
+        test_sample_count=int(all_probs.shape[0]/2)
+        final_probs=all_probs[0:test_sample_count]+all_probs[test_sample_count:]
+        final_pred=np.argmax(final_probs,axis=1)
+        return final_pred.tolist()    
+
+def loadmat(filename):
+    """ read MATLAB v7.3 .mat file """
+    with h5py.File(filename, 'r') as data:
+        if 'Whole_tracks' not in data:
+            raise KeyError("❌ Error: 'Whole_tracks' doen't exist")
+        
+        whole_tracks = data['Whole_tracks']
+        if 'count' not in whole_tracks or 'data' not in whole_tracks:
+            raise KeyError(f"❌ Error: 'Whole_tracks' Structure is incompleted: {list(whole_tracks.keys())}")
+
+        # read count
+        count = int(whole_tracks['count'][()].item())
+        track = [np.transpose(data[whole_tracks['data'][i].item()][:]).astype(np.float32) for i in range(count)]
+    
+    return {'tracks': {'count': count, 'data': track}}
+
+def load_labels(label_path):
+    """ read label .mat file """
+    with h5py.File(label_path, 'r') as data:
+        if 'class_label' not in data:
+            raise KeyError("❌ Error: 'class_label' is not exisit")
+        
+        class_label = data['class_label'][()]
+        
+        if isinstance(class_label, np.ndarray):
+            if class_label.size == 1:  
+                class_label = class_label.item()
+            else:  
+                class_label = np.array(class_label)
+        else:
+            class_label = int(class_label)
+
+        print(f"✅ data loaded class_label, shape: {class_label.shape}")
+        return class_label    

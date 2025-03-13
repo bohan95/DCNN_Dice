@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Apr 19, 2024
-
-Modified by Bohan on June 20, 2024
+Created by Bohan on Mar 5, 2025
 Tract Classification Project
-- Added KL-divergence for Self-Distillation and clustering loss
-- Added klDic.py and clustering_layer.py and modified main_40_16_GPU_KL.py file
-- Updated RESNET152_ATT_naive.py file to include bottleneck layers for Self-Distillation (both at class level and feature-map level)
-
+- Based on previous code from Soumyanil Banerjee on June 20, 2024
+- Added Dice loss
+- Add logic for ROI data
 @author: Bohan
 """
 from Embedding_layer import ROIFeatureExtractor
@@ -24,7 +21,6 @@ import argparse
 import time
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.utils.data as utils
 from sklearn.metrics import confusion_matrix
@@ -32,11 +28,6 @@ from sklearn.metrics import precision_recall_fscore_support
 import numpy as np
 import pickle
 import gc
-import re
-import seaborn as sn
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
 
 
 def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None, device='cpu'):
@@ -55,7 +46,7 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
 
         data, target = data.to(device), target.to(device)
         data, target = torch.autograd.Variable(data), torch.autograd.Variable(target)
-        # get 3d coordinate here for embed, here we use 3D + ROI embed
+        # preocess input data based on config (concat, emb, FE or without ROI)
         if args.use_feature_extractor:
             data_processed = preprocess_fiber_input(data, roi_extractor=roi_extractor, device=device, net_type='FE')
         elif args.use_embedding:
@@ -65,6 +56,7 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
         else:
             data_processed = preprocess_fiber_input(data, device=device, net_type='no_roi') 
 
+        # get result from model
         output, embed, _, _, _, _, _, _, _, _, _ = model(data_processed)
         predic_class = output.data.max(1, keepdim=True)[1]
 
@@ -74,12 +66,14 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
         total_loss = floss
         log_focal_loss += floss.item()
 
+        # center loss 
         if args.use_center_loss:
             closs = centerloss(target,embed)
             total_loss += closs
             log_centering_loss += closs.item()
-
+        # clustering loss
         if args.use_clustering_loss:
+            # use Dice loss
             if args.use_dice_a_loss:
                 anatomical_info = compute_fiber_roi(data)
                 # calculate clustering output using global cluster rois
@@ -88,10 +82,10 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
                 clustering_out, x_dis = clustering_layer(embed)
 
             
-            # TODO need to double check
+            # get target distrubution
             tar_dist = ClusterlingLayer.create_soft_labels(target, NCLASS, temperature=args.kl_temp).to(target.device)
 
-            
+            # cal cluster loss -- KL loss with weight
             clust_loss = args.clustering_weight * kl_loss.kl_div_cluster(torch.log(clustering_out), tar_dist) / args.batch_size
 
             total_loss += clust_loss
@@ -144,10 +138,6 @@ def train_step(epoch, model, args, roi_extractor=None, roi_embedding_layer=None,
 def test(epoch, model, args, roi_extractor=None, roi_embedding_layer=None, device='cpu'):
     """
     Evaluate the model on the test set.
-
-    - Computes focal loss and optionally center loss and clustering loss.
-    - Uses `global_cluster_rois` for anatomical consistency if `use_dice_a_loss` is enabled.
-    - Updates `global_cluster_rois` using batch-level cluster anatomical profiles.
     """
     model.eval()
     log_testing_total_loss = 0.0
@@ -253,8 +243,6 @@ if __name__ == "__main__":
                         help='Clustering Weight (default: 10)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--self_target_distribution', action='store_true', default=False,
-                        help='disables self-training with target distribution')
     parser.add_argument('--seed', type=int, default=666, metavar='S',
                         help='random seed (default: 666)')
     parser.add_argument('--use_dice_a_loss', action='store_true', 
@@ -296,7 +284,7 @@ if __name__ == "__main__":
     kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-    #TODO check use case
+    
     GPUINX=args.device
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
     os.environ["CUDA_VISIBLE_DEVICES"]=GPUINX
@@ -304,13 +292,11 @@ if __name__ == "__main__":
     device = torch.device("cuda:{}".format(GPUINX) if torch.cuda.is_available() else "cpu")
     print(f'device: {device}')   
     """build datasets"""
-    with open('../data_47_20_ROI_Final.pkl','rb') as f:
-        data=pickle.load(f)
-    # with open('../data_47_20_ROI_Final_0.2downsample.pkl','rb') as f:
+    # with open('../data_47_20_ROI_Final.pkl','rb') as f:
     #     data=pickle.load(f)
+    with open('../data_47_20_ROI_Final_0.2downsample.pkl','rb') as f:
+        data=pickle.load(f)
 
-    # raise ValueError('Please check the data file path')
-        
     """flip and shuffle"""     
     dataList = datato3d([data['X_train'],data['X_test']])
     X_train=dataList[0] # no_tractsx4x100
@@ -326,7 +312,7 @@ if __name__ == "__main__":
         X_test, Y_test = X_test[indices_test, :, ::], data['y_test'][indices_test]
         y_test_list=data['y_test'][indices_test].tolist()
     else: 
-        # TODO full testing
+        # full testing
         X_train, Y_train = X_train, data['y_train']
         X_test, Y_test = X_test, data['y_test']
         y_test_list=data['y_test'].tolist() # select only "indices_test" no. of fibers for testing with small dataset

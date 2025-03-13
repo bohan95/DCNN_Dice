@@ -194,14 +194,13 @@ def aug_at_test(probs,mode='max'):
         return final_pred.tolist()    
 
 def loadmat(filename):
-    """ 读取 MATLAB v7.3 .mat 文件 """
     with h5py.File(filename, 'r') as data:
         if 'Whole_tracks' not in data:
-            raise KeyError("❌ 错误: 'Whole_tracks' 变量不存在！")
+            raise KeyError("❌ Error: 'Whole_tracks' is not exist！")
         
         whole_tracks = data['Whole_tracks']
         if 'count' not in whole_tracks or 'data' not in whole_tracks:
-            raise KeyError(f"❌ 错误: 'Whole_tracks' 结构不完整！包含: {list(whole_tracks.keys())}")
+            raise KeyError(f"❌ Error: 'Whole_tracks' Incomplete structure! Include: {list(whole_tracks.keys())}")
 
         # 读取 count
         count = int(whole_tracks['count'][()].item())
@@ -210,10 +209,9 @@ def loadmat(filename):
     return {'tracks': {'count': count, 'data': track}}
 
 def load_labels(label_path):
-    """ 读取标签 .mat 文件 """
     with h5py.File(label_path, 'r') as data:
         if 'class_label' not in data:
-            raise KeyError("❌ 错误: 'class_label' 变量不存在！")
+            raise KeyError("❌ Error: 'class_label' is not exist！")
         
         class_label = data['class_label'][()]
         
@@ -229,7 +227,6 @@ def load_labels(label_path):
         return class_label
 
 def process_file(matpath, label_path, model, roi_extractor, clustering_layer, device, NCLASS, args_test_batch_size):
-    """ 处理单个测试文件，并返回其指标 """
     print(f"📌 preprocess data: {matpath}")
     
     mat = loadmat(matpath)
@@ -237,22 +234,22 @@ def process_file(matpath, label_path, model, roi_extractor, clustering_layer, de
     X_test = np.asarray(X_test).astype(np.float32)
     X_test_original = np.transpose(X_test, (0, 2, 1))
 
-    # 读取标签
+   
     y_test = load_labels(label_path)
     y_test_list = y_test
 
-    # 数据增强
+    
     X_test, y_test = udflip(X_test_original, y_test, shuffle=False)
 
-    # 转换为 PyTorch Tensor 并移动到相同设备
-    y_test = torch.from_numpy(y_test.astype(np.int64)).to(device)  # 确保标签也在正确设备上
+    
+    y_test = torch.from_numpy(y_test.astype(np.int64)).to(device)  
     X_test = torch.from_numpy(X_test).to(device)
 
     kwargs = {'num_workers': 0, 'pin_memory': False}
     tst_set = utils.TensorDataset(X_test, y_test)
     tst_loader = utils.DataLoader(tst_set, batch_size=args_test_batch_size, shuffle=False, **kwargs)
 
-    # **确保模型和 layers 都在同一个设备**
+    
     model.to(device)
     model.eval()
 
@@ -263,21 +260,19 @@ def process_file(matpath, label_path, model, roi_extractor, clustering_layer, de
         for data, target in tst_loader:
             labels += target.cpu().numpy().tolist()
 
-            # 确保 data 和 target 都在同一设备
+            
             data, target = data.to(device), target.to(device)
 
-            # 预处理数据
+            
             data_processed = preprocess_fiber_input(data, device=device, net_type='no_roi')
 
-            # 送入模型
-            output, embed, *_ = model(data_processed)  # **确保 model 已被移动到 `device`**
+            
+            output, embed, *_ = model(data_processed)  
 
-            probs.append(output.data.cpu().numpy())  # 确保 probs 存储在 CPU
+            probs.append(output.data.cpu().numpy())  
 
-    # 计算最终预测
     preds = aug_at_test(probs, mode='max')
 
-    # 计算指标
     conf_mat = confusion_matrix(y_test_list, preds)
     precision, recall, f1, _ = precision_recall_fscore_support(y_test_list, preds, average='macro')
 
@@ -290,15 +285,15 @@ def process_file(matpath, label_path, model, roi_extractor, clustering_layer, de
         auroc = roc_auc_score(labels, probs, multi_class='ovr')
         auprc = average_precision_score(labels, probs, average='macro')
     except ValueError as e:
-        print(f"AUROC / AUPRC 计算错误: {e}")
+        print(f"AUROC / AUPRC Error: {e}")
         auroc, auprc = None, None
 
     return precision, recall, f1, auroc, auprc
 
 
 def main():
-    data_dir = '../Testing_Set/'  # 数据目录
-    classnum = 15  # 类别数
+    data_dir = '../Testing_Set/'  
+    classnum = 15 
     args_test_batch_size = 10000
     NCLASS = int(classnum)
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -306,10 +301,8 @@ def main():
 
     model = RESNET152_ATT_naive.resnet18(num_classes=NCLASS, input_ch=3)
 
-    # 加载模型权重
     model.load_state_dict(torch.load('focal_loss_and_center_loss_no_roi.model', map_location=device))
 
-    # 遍历所有 .mat 文件
     results = []
     for filename in os.listdir(data_dir):
         if filename.endswith('_tracks.mat'):
@@ -317,14 +310,14 @@ def main():
             label_path = matpath.replace('_tracks.mat', '_class_label.mat')
 
             if not os.path.exists(label_path):
-                print(f"❌ 找不到标签文件: {label_path}")
+                print(f"❌ Label file not found: {label_path}")
                 continue
             start_time = time.time()
             precision, recall, f1, auroc, auprc = process_file(
                 matpath, label_path, model, None, None, device, NCLASS, args_test_batch_size
             )
             print(time.time()-start_time,'seconds')
-            print(f"📊 {filename} 指标:")
+            print(f"📊 {filename} metrics:")
             print(f"  Precision: {precision:.4f}, Recall: {recall:.4f}, F1: {f1:.4f}")
             print(f"  AUROC: {auroc:.4f}, AUPRC: {auprc:.4f}")
 
@@ -335,7 +328,7 @@ def main():
     mean_values = np.mean(results, axis=0)
     std_values = np.std(results, axis=0)
 
-    print("\n📊 所有测试文件的平均指标:")
+    print("\n📊 Average metrics for all test files:")
     print(f"  Precision: {mean_values[0]:.4f} ± {std_values[0]:.4f}")
     print(f"  Recall: {mean_values[1]:.4f} ± {std_values[1]:.4f}")
     print(f"  F1-score: {mean_values[2]:.4f} ± {std_values[2]:.4f}")
